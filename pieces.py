@@ -24,7 +24,7 @@ def remove_oob(moves):
     """
     return list(filter(filter_oob, moves))
 
-class Piece:
+class Piece():
 
     def __init__(self, position, colour):
         self.position = position
@@ -35,6 +35,9 @@ class Piece:
 
     def get_possible_moves(self):
         raise NotImplementedError("Please Implement get_possible_moves")
+
+    def can_move(self, new_position):
+        return new_position in self.get_possible_moves()
 
 
 class Pawn(Piece):
@@ -61,6 +64,10 @@ class Pawn(Piece):
 
         moves = [tuple_add(self.position, coords) for coords in DELTAS]
         return remove_oob(moves) 
+    
+    def __str__(self):
+        return "P"
+
 class Knight(Piece):
     
     def __init__(self, position, colour):
@@ -72,6 +79,9 @@ class Knight(Piece):
                                                 for y in DELTAS
                                                 if abs(x) != abs(y)]
         return remove_oob(moves)
+
+    def __str__(self):
+        return "N"
 
 class Bishop(Piece):
 
@@ -89,6 +99,9 @@ class Bishop(Piece):
                 move = self.position
         return moves
 
+    def __str__(self):
+        return "B"
+
 class Rook(Piece):
 
     def __init__(self, position, colour):
@@ -105,6 +118,8 @@ class Rook(Piece):
             move = self.position
         return moves
 
+    def __str__(self):
+        return "R"
 class Queen(Piece):
     
     def __init__(self, position, colour):
@@ -114,6 +129,9 @@ class Queen(Piece):
 
     def get_possible_moves(self):
         return self.rook.get_possible_moves() + self.bishop.get_possible_moves()
+    
+    def __str__(self):
+        return "Q"
 
 class King(Piece):
 
@@ -127,6 +145,9 @@ class King(Piece):
                                                 if x or y]
         return remove_oob(ans)
 
+    def __str__(self):
+        return "K"
+
 
 if __name__ == "__main__":
     my_piece = Piece((2, 4), "White")
@@ -134,7 +155,8 @@ if __name__ == "__main__":
     assert my_piece.colour == "White"
     my_piece.move_piece((3, 4))
     assert my_piece.position == (3,4)
-
+    knight = Knight((3,3), "WHITE")
+    print(f"knight at {knight.position} can move: {knight.get_possible_moves()}")
     bishop = Bishop((3, 3), "WHITE")
     print(f"bishop at {bishop.position} can move: {bishop.get_possible_moves()}")
     rook = Rook((4,4),"White")
