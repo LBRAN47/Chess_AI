@@ -16,6 +16,15 @@ class Board():
 
     def __init__(self):
         self.board = self.make_board()
+
+    def get_square(self, position):
+        """Return the piece at position, or None if no piece is at position"""
+        return self.board[position[1]][position[0]]
+
+    def replace_square(self, position, piece):
+        """replace the postiion in board with piece"""
+        self.board[position[1]][position[0]] = piece
+        return
     
 
     def make_board(self):
@@ -33,7 +42,7 @@ class Board():
                 row.append(Knight((6, i), color))
                 row.append(Rook((7, i), color))
             elif i == 1 or i == 6:
-                color = "WHITE" if i == 0 else "BLACK"
+                color = "WHITE" if i == 1 else "BLACK"
                 for j in range(8):
                     row.append(Pawn((j,i), color))
             else:
@@ -43,12 +52,11 @@ class Board():
         return board
     
 def interpreter(text):
-    """Converts text into a set of BoardCordinates.
+    """Converts text into a tuple of coordinates.
 
     Args:
-        text (str): two squares on the chess board representing the move e.g. "d4e5"
-    Returns:
-        list[BoardCoordinate]: two BoardCoordinates, one for the starting square and one for the ending square.
+        text (str): two squares on the chess board representing the move
+        e.g. "0103" == A2 to A4
     """
     
     if len(text) != 4:
@@ -70,9 +78,9 @@ if __name__ == "__main__":
         print_board(board.board)
         move = input("Make a move: ")
         pos, new_pos = interpreter(move)
-        piece = board.board[pos[1]][pos[0]]
-        print(piece)
-        piece.move_piece(new_pos)
-        board.board[pos[1]][pos[0]] = None
-        board.board[new_pos[1]][new_pos[0]] = piece
+        piece = board.get_square(pos)
+        if piece is not None and new_pos in piece.get_possible_moves():
+            piece.move_piece(new_pos)
+            board.replace_square(pos, None)
+            board.replace_square(new_pos, piece)
 
