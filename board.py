@@ -1,8 +1,9 @@
-from pieces import *
+from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
 
 def print_board(board):
+    print()
     for row in range(7, -1, -1):
-        row_string = "|"
+        row_string = f"{row} |"
         for col in range(8):
             if board[row][col] is None:
                 row_string += " "
@@ -10,27 +11,18 @@ def print_board(board):
                 row_string += str(board[row][col])
             row_string += "|"
         print(row_string)
+    print("   0 1 2 3 4 5 6 7")
 
 
 
 class Board():
 
     def __init__(self):
-        self.board = self.make_board()
-
-    def get_square(self, position):
-        """Return the piece at position, or None if no piece is at position"""
-        if out_of_bounds(position):
-            return None
-        return self.board[position[1]][position[0]]
-
-    def replace_square(self, position, piece):
-        """replace the postiion in board with piece"""
-        self.board[position[1]][position[0]] = piece
-        return
-    
+        self.make_board()
+        self.turn = "WHITE"
 
     def make_board(self):
+        """Generate the starting chess board"""
         board = []
         for i in range(8):
             row = []
@@ -52,10 +44,29 @@ class Board():
                 for j in range(8):
                     row.append(None)
             board.append(row)
-        return board
+        self.black_king_pos = (4, 7) 
+        self.white_king_pos = (4, 0)
+        self.board = board
+
+    def get_square(self, position):
+        """Return the piece at position, or None if no piece is at position"""
+        if out_of_bounds(position):
+            return None
+        return self.board[position[1]][position[0]]
+
+    def replace_square(self, position, piece):
+        """replace the postiion in board with piece"""
+        self.board[position[1]][position[0]] = piece
+        return
+
+    def change_turn(self):
+        """Swap Turns"""
+        self.turn = "BLACK" if self.turn == "WHITE" else "WHITE"
 
     def can_move(self, pos, new_pos):
-        """Return True if there is a piece at pos that can move legally to new_pos"""
+        """Return True if there is a piece at pos that can move legally to new_pos
+
+        Move order is not considered"""
         piece = self.get_square(pos)
         new_square = self.get_square(new_pos)
 
@@ -63,24 +74,24 @@ class Board():
             #no piece at position
             return False
 
-        print(f"attempting to move {piece} of colour {piece.colour} from {pos} to {new_pos}")
-
         assert piece.position == pos
 
         if not piece.can_move(new_pos):
-            #move not in piece moveset
+            #print("move not in piece moveset")
+
             return False
 
 
         if new_square is not None:
             if new_square.colour == piece.colour:
-                #cannot move to a square occupied by same coloured piece
+                #print("cannot move to a square occupied by same coloured piece")
                 return False
         if isinstance(piece, Pawn):
             delta = get_delta(pos, new_pos)
 
             if (delta[0] == 0 and new_square is not None) \
             or (delta[0] != 0 and new_square is None):
+                #print("must move diagonally on capture, or straight on move")
                 return False
 
         if isinstance(piece, Knight):
@@ -92,12 +103,67 @@ class Board():
         while ghost_pos != new_pos:
             square = self.get_square(ghost_pos)
             if square is not None:
-                #attempting to move through a piece
+                #print("attempting to move through a piece")
                 return False
             ghost_pos = tuple_add(ghost_pos, delta)
 
         return True
-            
+
+    def in_check(self, player):
+        """return True if the player is in check, otherwise False
+
+        Where player is either 'WHITE' or 'BLACK' """
+
+        king_pos = self.black_king_pos if player == "BLACK" else self.white_king_pos
+        for row in range(8):
+            for collumn in range(8):
+                piece = self.get_square((collumn, row))
+                if piece is None:
+                    continue
+                if piece.colour != player:
+                    if self.can_move(piece.position, king_pos):
+                        return True
+        return False
+
+
+    def try_move_piece(self, pos, new_pos):
+        """Attempt to move the piece if legal"""
+
+        piece = self.get_square(pos)
+        dest  = self.get_square(new_pos) #save this
+        
+        if piece.colour != self.turn:
+            return
+        
+        #Move the piece
+        piece.move_piece(new_pos)
+        self.replace_square(pos, None)
+        self.replace_square(new_pos, piece)
+        if isinstance(piece, King):
+            if piece.colour == "WHITE":
+                self.white_king_pos = piece.position
+            else:
+                self.black_king_pos = piece.position
+
+
+        if self.in_check(self.turn):
+            #backtrack
+            piece.move_piece(pos)
+            self.replace_square(pos, piece)
+            self.replace_square(new_pos, dest)
+            if isinstance(piece, King):
+                if piece.colour == "WHITE":
+                    self.white_king_pos = piece.position
+                else:
+                    self.black_king_pos = piece.position
+            print(f"Cannot move in a way that leaves {self.turn} in check")
+            return
+
+        self.change_turn()
+
+    def in_checkmate(self, player):
+        """Return True if the player is in checkmate, otherwise False"""
+        pass 
         
 
 
@@ -144,10 +210,5 @@ if __name__ == "__main__":
         print_board(board.board)
         move = input("Make a move: ")
         pos, new_pos = interpreter(move)
-        piece = board.get_square(pos)
         if board.can_move(pos, new_pos):
-            piece.move_piece(new_pos)
-            board.replace_square(pos, None)
-            board.replace_square(new_pos, piece)
-
-
+            board.try_move_piece(pos, new_pos)

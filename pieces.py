@@ -129,6 +129,11 @@ class Queen(Piece):
 
     def get_possible_moves(self):
         return self.rook.get_possible_moves() + self.bishop.get_possible_moves()
+
+    def move_piece(self, new_position):
+        self.rook.move_piece(new_position)
+        self.bishop.move_piece(new_position)
+        self.position = new_position
     
     def __str__(self):
         return "Q"
