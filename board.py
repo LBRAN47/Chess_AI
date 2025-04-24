@@ -160,25 +160,12 @@ class Board():
         self.backtrack(piece, pos, new_pos, dest)
         return True
     
-    def move_piece(self, pos, new_pos):
-
-        if not self.try_move_piece(pos, new_pos):
-            return
-        
-        piece = self.get_square(pos)
-        piece.move_piece(new_pos)
-        self.replace_square(pos, None)
-        self.replace_square(new_pos, piece)
-        if isinstance(piece, King):
-            if piece.colour == "WHITE":
-                self.white_king_pos = piece.position
-            else:
-                self.black_king_pos = piece.position
-
-        self.change_turn()
-        
-    
     def backtrack(self, piece, pos, new_pos, dest):
+        """Given a piece, pos, new_pos and dest:
+
+        1. Move piece back to pos
+        2. Move dest back to new_pos
+        3. Reset king_position"""
         piece.position = pos
         self.replace_square(pos, piece)
         self.replace_square(new_pos, dest)
@@ -188,6 +175,39 @@ class Board():
             else:
                 self.black_king_pos = piece.position
 
+    def move_piece(self, moveset):
+        """if we can move, perform the moveset, updating the game state accordingly"""
+
+        pos, new_pos, promotion = moveset
+
+        if not self.try_move_piece(pos, new_pos):
+            return
+        
+        piece = self.get_square(pos)
+        piece.move_piece(new_pos)
+        self.replace_square(pos, None)
+        if promotion is not None:
+            piece = self.get_promotion_piece(piece, promotion)
+        self.replace_square(new_pos, piece)
+        if isinstance(piece, King):
+            if piece.colour == "WHITE":
+                self.white_king_pos = piece.position
+            else:
+                self.black_king_pos = piece.position
+
+        self.change_turn()
+
+    def get_promotion_piece(self, piece, promotion):
+        """Return a new piece of type promotion w/ piece's attributes
+
+        Assuming promotion in ['B', 'N', 'R', 'Q']"""
+        pos = piece.position
+        colour = piece.colour
+        promotions = {'B': Bishop(pos, colour), 'N' : Knight(pos, colour),
+                      'R' : Rook(pos, colour), 'Q': Queen(pos, colour)}
+        return promotions[promotion]
+        
+    
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
         if not self.in_check(player):
@@ -254,8 +274,7 @@ def game_loop(board):
             #pos, new_pos = interpreter(move)
             moveset = parser.parse_move(move, board)
             if moveset is not None:
-                pos, new_pos = moveset
-                board.move_piece(pos, new_pos)
+                board.move_piece(moveset)
                 if board.in_checkmate(board.turn):
                     board.change_turn()
                     print(f"CHECKMATE. {board.turn} wins")
