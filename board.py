@@ -78,7 +78,6 @@ class Board():
 
         if not piece.can_move(new_pos):
             #print("move not in piece moveset")
-
             return False
 
 
@@ -86,12 +85,13 @@ class Board():
             if new_square.colour == piece.colour:
                 #print("cannot move to a square occupied by same coloured piece")
                 return False
+        
         if isinstance(piece, Pawn):
             delta = get_delta(pos, new_pos)
 
             if (delta[0] == 0 and new_square is not None) \
             or (delta[0] != 0 and new_square is None):
-                #print("must move diagonally on capture, or straight on move")
+                #print("must move diagonalnew_square is not Nonely on capture, or straight on move")
                 return False
 
         if isinstance(piece, Knight):
@@ -133,7 +133,10 @@ class Board():
         dest  = self.get_square(new_pos) #save this
         
         if piece.colour != self.turn:
-            return
+            return False
+        
+        if not self.can_move(pos, new_pos):
+            return False
         
         #Move the piece
         piece.move_piece(new_pos)
@@ -148,22 +151,66 @@ class Board():
 
         if self.in_check(self.turn):
             #backtrack
-            piece.move_piece(pos)
-            self.replace_square(pos, piece)
-            self.replace_square(new_pos, dest)
-            if isinstance(piece, King):
-                if piece.colour == "WHITE":
-                    self.white_king_pos = piece.position
-                else:
-                    self.black_king_pos = piece.position
+            self.backtrack(piece, pos, new_pos, dest)
             print(f"Cannot move in a way that leaves {self.turn} in check")
+            return False
+        
+        self.backtrack(piece, pos, new_pos, dest)
+        return True
+    
+    def move_piece(self, pos, new_pos):
+
+        if not self.try_move_piece(pos, new_pos):
             return
+        
+        piece = self.get_square(pos)
+        piece.move_piece(new_pos)
+        self.replace_square(pos, None)
+        self.replace_square(new_pos, piece)
+        if isinstance(piece, King):
+            if piece.colour == "WHITE":
+                self.white_king_pos = piece.position
+            else:
+                self.black_king_pos = piece.position
 
         self.change_turn()
+        
+    
+    def backtrack(self, piece, pos, new_pos, dest):
+        piece.move_piece(pos)
+        self.replace_square(pos, piece)
+        self.replace_square(new_pos, dest)
+        if isinstance(piece, King):
+            if piece.colour == "WHITE":
+                self.white_king_pos = piece.position
+            else:
+                self.black_king_pos = piece.position
 
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
-        pass 
+        if not self.in_check(player):
+            print("in check")
+            return False
+        
+        for row in range(8):
+            for collumn in range(8):
+                piece = self.get_square((collumn, row))
+                if piece is None:
+                    continue
+                pos = piece.position
+                if piece.colour == player:
+                    moves = piece.get_possible_moves()
+                    for move in moves:
+                        dest = self.get_square(move)
+                        if self.try_move_piece(pos, move):
+                            #Backtrack
+                            print(f"{piece} at {piece.position} gets us out")
+                            return False
+        return True
+
+
+
+                        
         
 
 
@@ -200,15 +247,29 @@ def interpreter(text):
         squares.append((col, row))
     return squares
 
+def game_loop(board):
+    while True:
+            print_board(board.board)
+            print(f"Turn: {board.turn}")
+            move = input("Make a move: ")
+            pos, new_pos = interpreter(move)
+            if board.can_move(pos, new_pos):
+                board.move_piece(pos, new_pos)
+                if board.in_checkmate(board.turn):
+                    board.change_turn()
+                    print(f"CHECKMATE. {board.turn} wins")
+                    break
 
 if __name__ == "__main__":
     assert get_delta((4,4), (3, 3)) == (-1, -1)
     assert get_delta((4, 3), (4, 1)) == (0, -1)
     assert get_delta((2,2), (1, 3)) == (-1, 1)
-    board = Board()
     while True:
-        print_board(board.board)
-        move = input("Make a move: ")
-        pos, new_pos = interpreter(move)
-        if board.can_move(pos, new_pos):
-            board.try_move_piece(pos, new_pos)
+        board = Board()
+        game_loop(board)
+        ans = input("Play Again? ")
+        if ans not in ['y', 'Y', 'yes']:
+            break
+        
+
+   
