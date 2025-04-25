@@ -154,7 +154,6 @@ class Board():
         if self.in_check(self.turn):
             #backtrack
             self.backtrack(piece, pos, new_pos, dest)
-            print(f"Cannot move in a way that leaves {self.turn} in check")
             return False
         
         self.backtrack(piece, pos, new_pos, dest)

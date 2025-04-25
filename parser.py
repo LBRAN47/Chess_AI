@@ -147,22 +147,32 @@ class Parser():
                 
 
     def get_moveset(self, piece_str, target_coords, board, start_coords=None):
-        """return a triple of a starting coordinate, target_coordinate and None"""
+        """return a moveset based on the arguments to the method
+
+        A moveset is a triple containing:
+            1. The coordinates of the piece to be moved
+            2. The target coordinates for the piece
+            3. Promotion indicator: the string representation of the piece to
+            promote to, or None if we are not promoting"""
+        start_col, start_row = None, None
+
         if start_coords is not None:
             start_col, start_row = start_coords
-            if start_col is not None and start_row is not None:
-                square = board.get_square(start_coords) 
-                if square is None or piece_str != str(square):
-                    print(f"no piece {piece_str} at starting coordinates {start_coords}")
-                    return
-                return (start_coords, target_coords, None)
-            
 
+        if start_col is not None and start_row is not None:
+            square = board.get_square(start_coords) 
+            if square is None or piece_str != str(square):
+                print(f"no piece {piece_str} at starting coordinates {start_coords}")
+                return
+            return (start_coords, target_coords, None)
 
-
-            
-        
-
-
-
+        for row in range(8):
+            row = start_row if start_row is not None else row
+            for col in range(8):
+                col = start_col if start_col is not None else col
+                square = board.get_square((col, row))
+                if square is None:
+                    continue
+                if str(square) == piece_str and board.try_move_piece((col, row), target_coords):
+                    return ((col, row), target_coords, None)
 
