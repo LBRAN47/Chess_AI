@@ -91,6 +91,18 @@ class Parser():
             target_coords = (target_col, target_row - 1)
             return self.get_moveset(piece_str, target_coords, board, start_coords)
 
+    def parse_castle(self, move, board):
+        """Return the castling moveset represented by move"""
+        row = 0 if board.turn == "WHITE" else 7
+        if move in ['0-0', 'O-O']: #short castle
+            return ((4,row), (6,row), None)
+        elif move in ['0-0-0', 'O-O-O']: #long castle
+            return ((4,row), (2,row), None)
+        else:
+            print("invalid move: did you mean castle?")
+            
+
+
         
     def parse_pawn(self, move, board):
         """Parse a pawn move.
