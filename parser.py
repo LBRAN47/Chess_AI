@@ -165,19 +165,21 @@ class Parser():
             1. The coordinates of the piece to be moved
             2. The target coordinates for the piece
             3. Promotion indicator: the string representation of the piece to
-            promote to, or None if we are not promoting"""
+            promote to, or None if we are not promoting
+
+        Parameters:
+            piece_str: a string representation of a piece
+            target_coords: the coordinates of our target square
+            board: an instance of Board
+            start_coords: None if no disambiguation is given, else a set of
+                coordinates where either row or collumn may be None. Indicates
+                what we know about the starting square"""
         start_col, start_row = None, None
 
         if start_coords is not None:
             start_col, start_row = start_coords
 
-        if start_col is not None and start_row is not None:
-            square = board.get_square(start_coords) 
-            if square is None or piece_str != str(square):
-                print(f"no piece {piece_str} at starting coordinates {start_coords}")
-                return
-            return (start_coords, target_coords, None)
-
+        moveset = None
         for row in range(8):
             row = start_row if start_row is not None else row
             for col in range(8):
@@ -186,5 +188,15 @@ class Parser():
                 if square is None:
                     continue
                 if str(square) == piece_str and board.try_move_piece((col, row), target_coords):
-                    return ((col, row), target_coords, None)
+                    if moveset is not None:
+                        print("Insufficient disambiguation")
+                        return
+                    moveset = ((col, row), target_coords, None)
+                if start_col is not None: #only check this collumn
+                    break
+            if start_row is not None: #only check this row
+                break
+        if moveset is None:
+                print(f"no piece {piece_str} at starting coordinates {start_coords}")
+        return moveset
 
