@@ -1,9 +1,10 @@
 from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
+from parser import Parser
 
 def print_board(board):
     print()
     for row in range(7, -1, -1):
-        row_string = f"{row} |"
+        row_string = f"{row+1} |"
         for col in range(8):
             if board[row][col] is None:
                 row_string += " "
@@ -11,7 +12,7 @@ def print_board(board):
                 row_string += str(board[row][col])
             row_string += "|"
         print(row_string)
-    print("   0 1 2 3 4 5 6 7")
+    print("   a b c d e f g h")
 
 
 
@@ -71,7 +72,7 @@ class Board():
         new_square = self.get_square(new_pos)
 
         if piece is None:
-            #no piece at position
+            #print("no piece at position")
             return False
 
         assert piece.position == pos
@@ -132,14 +133,15 @@ class Board():
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
         
+        if not self.can_move(pos, new_pos):
+            return False
+
         if piece.colour != self.turn:
             return False
         
-        if not self.can_move(pos, new_pos):
-            return False
         
         #Move the piece
-        piece.move_piece(new_pos)
+        piece.position = new_pos
         self.replace_square(pos, None)
         self.replace_square(new_pos, piece)
         if isinstance(piece, King):
@@ -152,32 +154,18 @@ class Board():
         if self.in_check(self.turn):
             #backtrack
             self.backtrack(piece, pos, new_pos, dest)
-            print(f"Cannot move in a way that leaves {self.turn} in check")
             return False
         
         self.backtrack(piece, pos, new_pos, dest)
         return True
     
-    def move_piece(self, pos, new_pos):
-
-        if not self.try_move_piece(pos, new_pos):
-            return
-        
-        piece = self.get_square(pos)
-        piece.move_piece(new_pos)
-        self.replace_square(pos, None)
-        self.replace_square(new_pos, piece)
-        if isinstance(piece, King):
-            if piece.colour == "WHITE":
-                self.white_king_pos = piece.position
-            else:
-                self.black_king_pos = piece.position
-
-        self.change_turn()
-        
-    
     def backtrack(self, piece, pos, new_pos, dest):
-        piece.move_piece(pos)
+        """Given a piece, pos, new_pos and dest:
+
+        1. Move piece back to pos
+        2. Move dest back to new_pos
+        3. Reset king_position"""
+        piece.position = pos
         self.replace_square(pos, piece)
         self.replace_square(new_pos, dest)
         if isinstance(piece, King):
@@ -186,10 +174,42 @@ class Board():
             else:
                 self.black_king_pos = piece.position
 
+    def move_piece(self, moveset):
+        """if we can move, perform the moveset, updating the game state accordingly"""
+
+        pos, new_pos, promotion = moveset
+
+        if not self.try_move_piece(pos, new_pos):
+            return
+        
+        piece = self.get_square(pos)
+        piece.move_piece(new_pos)
+        self.replace_square(pos, None)
+        if promotion is not None:
+            piece = self.get_promotion_piece(piece, promotion)
+        self.replace_square(new_pos, piece)
+        if isinstance(piece, King):
+            if piece.colour == "WHITE":
+                self.white_king_pos = piece.position
+            else:
+                self.black_king_pos = piece.position
+
+        self.change_turn()
+
+    def get_promotion_piece(self, piece, promotion):
+        """Return a new piece of type promotion w/ piece's attributes
+
+        Assuming promotion in ['B', 'N', 'R', 'Q']"""
+        pos = piece.position
+        colour = piece.colour
+        promotions = {'B': Bishop(pos, colour), 'N' : Knight(pos, colour),
+                      'R' : Rook(pos, colour), 'Q': Queen(pos, colour)}
+        return promotions[promotion]
+        
+    
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
         if not self.in_check(player):
-            print("in check")
             return False
         
         for row in range(8):
@@ -201,10 +221,7 @@ class Board():
                 if piece.colour == player:
                     moves = piece.get_possible_moves()
                     for move in moves:
-                        dest = self.get_square(move)
                         if self.try_move_piece(pos, move):
-                            #Backtrack
-                            print(f"{piece} at {piece.position} gets us out")
                             return False
         return True
 
@@ -248,13 +265,15 @@ def interpreter(text):
     return squares
 
 def game_loop(board):
+    parser = Parser()
     while True:
             print_board(board.board)
             print(f"Turn: {board.turn}")
             move = input("Make a move: ")
-            pos, new_pos = interpreter(move)
-            if board.can_move(pos, new_pos):
-                board.move_piece(pos, new_pos)
+            #pos, new_pos = interpreter(move)
+            moveset = parser.parse_move(move, board)
+            if moveset is not None:
+                board.move_piece(moveset)
                 if board.in_checkmate(board.turn):
                     board.change_turn()
                     print(f"CHECKMATE. {board.turn} wins")
