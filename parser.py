@@ -1,5 +1,22 @@
 from pieces import Pawn
 
+def parse_PGN(pgn):
+    """Given a string of a PGN (Portable Game Notation) file, return a list
+    of parsable moves"""
+    idx = 0
+    while pgn[idx] == '[':
+        idx += 1
+        while pgn[idx] != ']':
+            idx += 1
+        idx += 2
+    pgn = pgn[idx:] #remove headers
+
+    pgn = pgn[1:] #remove blank line
+
+    print(pgn[0])
+        
+        
+
 class Parser():
     """Convert Chess Notation into usable board Coordinates"""
 
@@ -200,3 +217,6 @@ class Parser():
                 print(f"no piece {piece_str} at starting coordinates {start_coords}")
         return moveset
 
+if __name__ == "__main__":
+    with open("file.pgn") as f:
+        parse_PGN(f.read())
