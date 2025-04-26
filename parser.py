@@ -44,11 +44,6 @@ class Parser():
 
         return moves
 
-
-            
-
-
-
     def convert_coordinate(self, coord):
         """Convert from Chess Coordinate to tuple"""
 
@@ -76,6 +71,9 @@ class Parser():
 
         Returns: two sets of coordinates, the first being the square to move from
         and the second to move to."""
+        
+
+        move = move.strip("+#")
 
         if move == "":
             print("empty move")
@@ -103,15 +101,18 @@ class Parser():
                 col, move = self.COLUMN_CONVERT[move[0]], move[1:]
                 if move[0].isdigit() and int(move[0]) in self.ROWS:
                     row, move = int(move[0]) - 1, move[1:]
-                    if len(move) == 0: #basic move e.g. Be4
+                    if len(move) == 0:
                         return self.get_moveset(piece_str, (col, row), board)
+                    else:
+                        print(f"Invalid trailing characters: {move}")
+                        return
 
             if len(move) != 0 and move[0] == 'x':
                 move = move[1:]
 
             start_coords = col, row
 
-            if len(move) != 2:
+            if len(move) < 2:
                 print("invalid length notation")
                 return
             if move[0] not in self.COLUMNS:
@@ -127,8 +128,14 @@ class Parser():
                 print("Invalid Notation: incorrect coordinate")
                 return
 
+            move = move[2:]
             target_coords = (target_col, target_row - 1)
-            return self.get_moveset(piece_str, target_coords, board, start_coords)
+            if len(move) == 0:
+                return self.get_moveset(piece_str, target_coords, board, start_coords)
+            else:
+                print(f"Invalid trailing characters: {move}")
+                return
+
 
     def parse_castle(self, move, board):
         """Return the castling moveset represented by move"""

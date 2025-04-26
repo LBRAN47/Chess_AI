@@ -1,20 +1,6 @@
 from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
 from parser import Parser
-
-def print_board(board):
-    print()
-    for row in range(7, -1, -1):
-        row_string = f"{row+1} |"
-        for col in range(8):
-            if board[row][col] is None:
-                row_string += " "
-            else:
-                row_string += str(board[row][col])
-            row_string += "|"
-        print(row_string)
-    print("   a b c d e f g h")
-
-
+import time
 
 class Board():
 
@@ -48,6 +34,19 @@ class Board():
         self.black_king_pos = (4, 7) 
         self.white_king_pos = (4, 0)
         self.board = board
+
+    def print_board(self):
+        print()
+        for row in range(7, -1, -1):
+            row_string = f"{row+1} |"
+            for col in range(8):
+                if self.board[row][col] is None:
+                    row_string += " "
+                else:
+                    row_string += str(self.board[row][col])
+                row_string += "|"
+            print(row_string)
+        print("   a b c d e f g h")
 
     def get_square(self, position):
         """Return the piece at position, or None if no piece is at position"""
@@ -264,31 +263,5 @@ def interpreter(text):
         squares.append((col, row))
     return squares
 
-def game_loop(board):
-    parser = Parser()
-    while True:
-            print_board(board.board)
-            print(f"Turn: {board.turn}")
-            move = input("Make a move: ")
-            #pos, new_pos = interpreter(move)
-            moveset = parser.parse_move(move, board)
-            if moveset is not None:
-                board.move_piece(moveset)
-                if board.in_checkmate(board.turn):
-                    board.change_turn()
-                    print(f"CHECKMATE. {board.turn} wins")
-                    break
-
-if __name__ == "__main__":
-    assert get_delta((4,4), (3, 3)) == (-1, -1)
-    assert get_delta((4, 3), (4, 1)) == (0, -1)
-    assert get_delta((2,2), (1, 3)) == (-1, 1)
-    while True:
-        board = Board()
-        game_loop(board)
-        ans = input("Play Again? ")
-        if ans not in ['y', 'Y', 'yes']:
-            break
-        
 
    
