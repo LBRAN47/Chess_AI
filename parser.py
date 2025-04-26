@@ -1,19 +1,5 @@
 from pieces import Pawn
 
-def parse_PGN(pgn):
-    """Given a string of a PGN (Portable Game Notation) file, return a list
-    of parsable moves"""
-    idx = 0
-    while pgn[idx] == '[':
-        idx += 1
-        while pgn[idx] != ']':
-            idx += 1
-        idx += 2
-    pgn = pgn[idx:] #remove headers
-
-    pgn = pgn[1:] #remove blank line
-
-    print(pgn[0])
         
         
 
@@ -26,6 +12,42 @@ class Parser():
         self.COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
         self.ROWS    = [1, 2, 3, 4, 5, 6, 7, 8]
         self.COLUMN_CONVERT = dict(zip(self.COLUMNS, map(lambda x : x-1, self.ROWS)))
+
+
+    def parse_PGN(self, pgn):
+        """Given a string of a PGN (Portable Game Notation) file, return a list
+        of parsable moves"""
+        MOVE_START_SET = self.PIECES + self.COLUMNS + ["O"]
+        idx = 0
+
+        #skip headers
+        while pgn[idx] == '[':
+            idx += 1
+            while pgn[idx] != '\n':
+                idx += 1
+            idx += 1
+
+        idx += 1 #skip newline
+
+        #parse game
+        moves = []
+        while pgn[idx:] not in ["1-0", "0-1", "1/2-1/2"]:
+            
+            while pgn[idx] not in MOVE_START_SET:
+                idx += 1
+            move = ''
+            while pgn[idx] != ' ' and pgn[idx] != '\n':
+                move += pgn[idx]
+                idx += 1
+            moves.append(move)
+            idx += 1
+
+        return moves
+
+
+            
+
+
 
     def convert_coordinate(self, coord):
         """Convert from Chess Coordinate to tuple"""
@@ -218,5 +240,6 @@ class Parser():
         return moveset
 
 if __name__ == "__main__":
+    parser = Parser()
     with open("file.pgn") as f:
-        parse_PGN(f.read())
+        print(parser.parse_PGN(f.read()))
