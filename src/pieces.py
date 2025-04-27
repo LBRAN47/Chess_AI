@@ -106,6 +106,7 @@ class Rook(Piece):
 
     def __init__(self, position, colour):
         super().__init__(position, colour)
+        self.has_moved = False
 
     def get_possible_moves(self):
         moves = []
@@ -117,6 +118,10 @@ class Rook(Piece):
                 moves.append(move)
             move = self.position
         return moves
+
+    def move_piece(self, new_position):
+        super().move_piece(new_position)
+        self.has_moved = True
 
     def __str__(self):
         return "R"
