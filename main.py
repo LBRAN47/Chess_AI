@@ -20,6 +20,7 @@ def game_loop(board, file=None):
                     print("\nGame Over! The Game ends in a Draw")
                     break
                 move = moves.pop(0)
+                print(move)
                 input() #wait for enter
 
             moveset = parser.parse_move(move, board)
