@@ -63,7 +63,7 @@ class Board():
         """Swap Turns"""
         self.turn = "BLACK" if self.turn == "WHITE" else "WHITE"
 
-    def can_move(self, pos, new_pos):
+    def valid_move(self, pos, new_pos):
         """Return True if there is a piece at pos that can move legally to new_pos
 
         Move order is not considered"""
@@ -121,18 +121,18 @@ class Board():
                 if piece is None:
                     continue
                 if piece.colour != player:
-                    if self.can_move(piece.position, king_pos):
+                    if self.valid_move(piece.position, king_pos):
                         return True
         return False
 
 
-    def try_move_piece(self, pos, new_pos):
+    def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
 
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
         
-        if not self.can_move(pos, new_pos):
+        if not self.valid_move(pos, new_pos):
             return False
 
         if piece.colour != self.turn:
@@ -178,7 +178,7 @@ class Board():
 
         pos, new_pos, promotion = moveset
 
-        if not self.try_move_piece(pos, new_pos):
+        if not self.can_move_piece(pos, new_pos):
             return
         
         piece = self.get_square(pos)
@@ -220,7 +220,7 @@ class Board():
                 if piece.colour == player:
                     moves = piece.get_possible_moves()
                     for move in moves:
-                        if self.try_move_piece(pos, move):
+                        if self.can_move_piece(pos, move):
                             return False
         return True
 

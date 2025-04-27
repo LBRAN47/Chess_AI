@@ -16,7 +16,7 @@ def game_loop(board, file=None):
                 move = input("Make a move: ")
             else:
                 if len(moves) == 0:
-                    print("\nGame Over! The Players Agree to a Draw")
+                    print("\nGame Over! The Game ends in a Draw")
                     break
                 move = moves.pop(0)
                 input() #wait for enter
@@ -39,6 +39,3 @@ if __name__ == "__main__":
         ans = input("Play Again? ")
         if ans not in ['y', 'Y', 'yes']:
             break
-
-        
-
