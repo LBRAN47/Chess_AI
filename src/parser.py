@@ -21,6 +21,7 @@ class Parser():
         of parsable moves"""
         MOVE_START_SET = self.PIECES + self.COLUMNS + ["O"]
         idx = 0
+        pgn = pgn.strip()
 
         self.headers = {}
         #get headers
@@ -45,7 +46,7 @@ class Parser():
         #parse game
         moves = []
         while pgn[idx:] not in ["1-0", "0-1", "1/2-1/2"]:
-            
+            print(f"not in set: {pgn[idx:]}")
             while pgn[idx] not in MOVE_START_SET:
                 idx += 1
             move = ''
@@ -171,7 +172,7 @@ class Parser():
                 return ans
             prom_valid_length = 6
         else:
-            ending_square = self.convert_coordinate(move)
+            ending_square = self.convert_coordinate(move[0:2])
             if ending_square is None:
                 return
             for i in [-2, -1, 1, 2]:
