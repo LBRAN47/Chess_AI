@@ -7,7 +7,8 @@ def game_loop(board, file=None):
     if file is not None:
         with open(file) as f:
             moves = parser.parse_PGN(f.read())
-        print(f"Generating game from {file}")
+        print(f"Generating game from {file}...")
+        print(f"\n{parser.headers['White']} vs. {parser.headers['Black']}\n")
         print("Press ENTER to show next move")
     while True:
             board.print_board()

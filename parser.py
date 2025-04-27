@@ -22,9 +22,20 @@ class Parser():
         MOVE_START_SET = self.PIECES + self.COLUMNS + ["O"]
         idx = 0
 
-        #skip headers
+        self.headers = {}
+        #get headers
         while pgn[idx] == '[':
             idx += 1
+            header_key = ''
+            while pgn[idx] != ' ':
+                header_key += pgn[idx]
+                idx += 1
+            idx += 2
+            header_val = ''
+            while pgn[idx] != '"':
+                header_val += pgn[idx]
+                idx += 1
+            self.headers[header_key] = header_val
             while pgn[idx] != '\n':
                 idx += 1
             idx += 1
@@ -44,6 +55,7 @@ class Parser():
             moves.append(move)
             idx += 1
 
+        print(self.headers)
         return moves
 
     def get_coordinate(self, row, col):
