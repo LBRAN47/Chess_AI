@@ -138,17 +138,8 @@ class Board():
         if piece.colour != self.turn:
             return False
         
-        
         #Move the piece
-        piece.position = new_pos
-        self.replace_square(pos, None)
-        self.replace_square(new_pos, piece)
-        if isinstance(piece, King):
-            if piece.colour == "WHITE":
-                self.white_king_pos = piece.position
-            else:
-                self.black_king_pos = piece.position
-
+        self.change_piece_position(pos, new_pos, None)
 
         if self.in_check(self.turn):
             #backtrack
@@ -157,6 +148,10 @@ class Board():
         
         self.backtrack(piece, pos, new_pos, dest)
         return True
+
+    def validate_castle(self, pos, new_pos):
+        """Return True if we can castle from pos to new_pos"""
+
     
     def backtrack(self, piece, pos, new_pos, dest):
         """Given a piece, pos, new_pos and dest:
@@ -173,16 +168,12 @@ class Board():
             else:
                 self.black_king_pos = piece.position
 
-    def move_piece(self, moveset):
-        """if we can move, perform the moveset, updating the game state accordingly"""
 
-        pos, new_pos, promotion = moveset
+    def change_piece_position(self, pos, new_pos, promotion):
+        """move the piece w/o changing the turn"""
 
-        if not self.can_move_piece(pos, new_pos):
-            return
-        
         piece = self.get_square(pos)
-        piece.move_piece(new_pos)
+        piece.position = new_pos
         self.replace_square(pos, None)
         if promotion is not None:
             piece = self.get_promotion_piece(piece, promotion)
@@ -193,6 +184,17 @@ class Board():
             else:
                 self.black_king_pos = piece.position
 
+
+    def move_piece(self, moveset):
+        """if we can move, perform the moveset, updating the game state accordingly"""
+
+        pos, new_pos, promotion = moveset
+
+        if not self.can_move_piece(pos, new_pos):
+            return
+        
+        self.change_piece_position(pos, new_pos, promotion)
+        self.get_square(new_pos).move_piece(new_pos)
         self.change_turn()
 
     def get_promotion_piece(self, piece, promotion):

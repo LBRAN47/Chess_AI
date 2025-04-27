@@ -142,12 +142,23 @@ class King(Piece):
 
     def __init__(self, position, colour):
         super().__init__(position, colour)
+        self.start_pos = position
+        self.has_moved = False
+
+    def move_piece(self, new_position):
+        super().move_piece(new_position)
+        self.has_moved = True
 
     def get_possible_moves(self):
         DELTAS = [-1, 0, 1]
         ans = [tuple_add(self.position, (x,y)) for x in DELTAS
                                                 for y in DELTAS
                                                 if x or y]
+        #castling
+        if not self.has_moved:
+            ans.append(tuple_add(self.start_pos, (2,0)))
+            ans.append(tuple_add(self.start_pos, (-2,0)))
+
         return remove_oob(ans)
 
     def __str__(self):
