@@ -46,7 +46,6 @@ class Parser():
         #parse game
         moves = []
         while pgn[idx:] not in ["1-0", "0-1", "1/2-1/2"]:
-            print(f"not in set: {pgn[idx:]}")
             while pgn[idx] not in MOVE_START_SET:
                 idx += 1
             move = ''

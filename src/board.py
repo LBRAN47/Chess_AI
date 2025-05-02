@@ -89,10 +89,10 @@ class Board():
         if isinstance(piece, Pawn):
             delta = get_delta(pos, new_pos)
 
-            if (delta[0] == 0 and new_square is not None) \
-            or (delta[0] != 0 and new_square is None):
-                #print("must move diagonalnew_square is not Nonely on capture, or straight on move")
+            if (delta[0] == 0 and new_square is not None):
                 return False
+            if (delta[0] != 0 and new_square is None):
+                return self.is_valid_enpessant(pos, new_pos) 
 
         if isinstance(piece, Knight):
             #Knights can jump over peices
@@ -109,21 +109,12 @@ class Board():
 
         return True
 
-    def in_check(self, player):
-        """return True if the player is in check, otherwise False
-
-        Where player is either 'WHITE' or 'BLACK' """
-
-        king_pos = self.black_king_pos if player == "BLACK" else self.white_king_pos
-        for row in range(8):
-            for collumn in range(8):
-                piece = self.get_square((collumn, row))
-                if piece is None:
-                    continue
-                if piece.colour != player:
-                    if self.valid_move(piece.position, king_pos):
-                        return True
+    def is_valid_enpessant(self, pos, new_pos):
+        """TO DO: return True if we can capture enpessant"""
         return False
+
+    def is_enpessant(self, pos, new_pos):
+        """TO DO: return True if the move is an enpessant"""
 
     def is_castle(self, pos, new_pos):
         piece = self.get_square(pos)
@@ -166,6 +157,21 @@ class Board():
         return True
 
 
+    def in_check(self, player):
+        """return True if the player is in check, otherwise False
+
+        Where player is either 'WHITE' or 'BLACK' """
+
+        king_pos = self.black_king_pos if player == "BLACK" else self.white_king_pos
+        for row in range(8):
+            for collumn in range(8):
+                piece = self.get_square((collumn, row))
+                if piece is None:
+                    continue
+                if piece.colour != player:
+                    if self.valid_move(piece.position, king_pos):
+                        return True
+        return False
 
     def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
@@ -181,8 +187,11 @@ class Board():
 
 
         if self.is_castle(pos, new_pos):
-            print("WHAT")
             return self.is_valid_castle(piece, pos, new_pos)
+
+        if self.is_enpessant(pos, new_pos):
+            #remove the piece we are capturing!!
+            pass
 
         #Move the piece
         self.change_piece_position(pos, new_pos, None)
@@ -193,6 +202,11 @@ class Board():
             return False
         
         self.backtrack(piece, pos, new_pos, dest)
+
+        if self.is_enpessant(pos, new_pos):
+            #put the captured piece back
+            pass
+
         return True
 
     
@@ -241,6 +255,10 @@ class Board():
             target_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
             self.change_piece_position(cur_rook, target_rook, None)
             self.get_square(target_rook).move_piece(target_rook)
+
+        if self.is_enpessant(pos, new_pos):
+            #capture the piece
+            pass
 
         self.change_piece_position(pos, new_pos, promotion)
         self.get_square(new_pos).move_piece(new_pos)
