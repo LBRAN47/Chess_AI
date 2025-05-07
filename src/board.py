@@ -2,11 +2,14 @@ from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, 
 from parser import Parser
 import time
 
+WHITE = "WHITE"
+BLACK = "BLACK"
+
 class Board():
 
     def __init__(self):
         self.make_board()
-        self.turn = "WHITE"
+        self.turn = WHITE
         self.prev_piece = None
 
     def make_board(self):
@@ -15,7 +18,7 @@ class Board():
         for i in range(8):
             row = []
             if i == 0 or i == 7:
-                colour = "WHITE" if i == 0 else "BLACK"
+                colour = WHITE if i == 0 else BLACK
                 row.append(Rook((0, i), colour))
                 row.append(Knight((1, i), colour))
                 row.append(Bishop((2, i), colour))
@@ -25,7 +28,7 @@ class Board():
                 row.append(Knight((6, i), colour))
                 row.append(Rook((7, i), colour))
             elif i == 1 or i == 6:
-                colour = "WHITE" if i == 1 else "BLACK"
+                colour = WHITE if i == 1 else BLACK
                 for j in range(8):
                     row.append(Pawn((j,i), colour))
             else:
@@ -62,7 +65,7 @@ class Board():
 
     def change_turn(self):
         """Swap Turns"""
-        self.turn = "BLACK" if self.turn == "WHITE" else "WHITE"
+        self.turn = BLACK if self.turn == WHITE else WHITE
 
     def valid_move(self, pos, new_pos):
         """Return True if there is a piece at pos that can move legally to new_pos
@@ -72,19 +75,16 @@ class Board():
         new_square = self.get_square(new_pos)
 
         if piece is None:
-            #print("no piece at position")
             return False
 
         assert piece.position == pos
 
         if not piece.can_move(new_pos):
-            #print("move not in piece moveset")
             return False
 
 
         if new_square is not None:
             if new_square.colour == piece.colour:
-                #print("cannot move to a square occupied by same coloured piece")
                 return False
         
         if isinstance(piece, Pawn):
@@ -96,7 +96,6 @@ class Board():
                 return self.is_valid_enpessant(pos, new_pos) 
 
         if isinstance(piece, Knight):
-            #Knights can jump over peices
             return True
         
         delta = get_delta(pos, new_pos)
@@ -104,14 +103,13 @@ class Board():
         while ghost_pos != new_pos:
             square = self.get_square(ghost_pos)
             if square is not None:
-                #print("attempting to move through a piece")
                 return False
             ghost_pos = tuple_add(ghost_pos, delta)
 
         return True
 
     def is_valid_enpessant(self, pos, new_pos):
-        """TO DO: return True if we can capture enpessant"""
+        """Return True if we can capture enpessant"""
         #move diagonally
         delta = get_delta(pos, new_pos)
         piece = self.get_square(pos)
@@ -130,18 +128,23 @@ class Board():
         return True
 
     def is_enpessant(self, pos, new_pos):
-        """TO DO: return True if the move is an enpessant"""
+        """Return True if the move is an enpessant"""
         piece = self.get_square(pos)
         delta = get_delta(pos, new_pos)
         return isinstance(piece, Pawn) and abs(delta[0]) == 1 and self.get_square(new_pos) is None
         
-
-
-
     def is_castle(self, pos, new_pos):
+        """Return True if the move is a castle"""
         piece = self.get_square(pos)
         return (isinstance(piece, King) and not piece.has_moved
         and (new_pos[0] - pos[0], new_pos[1] - pos[1]) in [(2,0), (-2,0)])
+
+    def king_castle_valid(self, king, pos, new_pos):
+        """Return True if this king can move from pos to new_pos, in a way that
+        satisfies the rules of castling."""
+        return (not self.in_check(king.colour)
+                and self.get_square(new_pos) is None
+                and self.valid_move(pos, new_pos))
 
     def is_valid_castle(self, king, pos, new_pos):
         """Return True if we can castle from pos to new_pos"""
@@ -151,27 +154,16 @@ class Board():
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
         rook = self.get_square(rook_pos)
         if rook is None or rook.has_moved or rook.colour != king.colour:
-            print("rook invalid")
             return False
         while pos != new_pos:
             target = tuple_add(pos, delta)
-            if self.in_check(king.colour):
-                print("cannot castle out of or through check")
+            if not self.king_castle_valid(king, pos, target):
                 self.backtrack(king, og_pos, pos, None)
                 return False
-            if self.get_square(target) is not None:
-                print(f"{target} is non-empty square")
-                self.backtrack(king, og_pos, pos, None)
-                return False
-            if not self.valid_move(pos, target):
-                print("Illegal castle")
-                self.backtrack(king, og_pos, pos, None)
-                return False
-            self.change_piece_position(pos, target, None)
+            self.change_piece_position(pos, target)
             pos = target
 
         if self.in_check(king.colour):
-            print("cannot castle out of or through check")
             self.backtrack(king, og_pos, pos, None)
             return False
 
@@ -184,7 +176,7 @@ class Board():
 
         Where player is either 'WHITE' or 'BLACK' """
 
-        king_pos = self.black_king_pos if player == "BLACK" else self.white_king_pos
+        king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
         for row in range(8):
             for collumn in range(8):
                 piece = self.get_square((collumn, row))
@@ -218,7 +210,7 @@ class Board():
             self.replace_square(op_position, None)
 
         #Move the piece
-        self.change_piece_position(pos, new_pos, None)
+        self.change_piece_position(pos, new_pos)
 
         if self.in_check(self.turn):
             #backtrack
@@ -247,13 +239,13 @@ class Board():
         self.replace_square(pos, piece)
         self.replace_square(new_pos, dest)
         if isinstance(piece, King):
-            if piece.colour == "WHITE":
+            if piece.colour == WHITE:
                 self.white_king_pos = piece.position
             else:
                 self.black_king_pos = piece.position
 
 
-    def change_piece_position(self, pos, new_pos, promotion):
+    def change_piece_position(self, pos, new_pos, promotion=None):
         """move the piece w/o changing the turn"""
 
         piece = self.get_square(pos)
@@ -263,7 +255,7 @@ class Board():
             piece = self.get_promotion_piece(piece, promotion)
         self.replace_square(new_pos, piece)
         if isinstance(piece, King):
-            if piece.colour == "WHITE":
+            if piece.colour == WHITE:
                 self.white_king_pos = piece.position
             else:
                 self.black_king_pos = piece.position
@@ -280,7 +272,7 @@ class Board():
         if self.is_castle(pos, new_pos):
             cur_rook = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
             target_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
-            self.change_piece_position(cur_rook, target_rook, None)
+            self.change_piece_position(cur_rook, target_rook)
             self.get_square(target_rook).move_piece(target_rook)
 
         if self.is_enpessant(pos, new_pos):
