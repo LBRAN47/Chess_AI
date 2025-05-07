@@ -7,6 +7,7 @@ class Board():
     def __init__(self):
         self.make_board()
         self.turn = "WHITE"
+        self.prev_piece = None
 
     def make_board(self):
         """Generate the starting chess board"""
@@ -111,10 +112,31 @@ class Board():
 
     def is_valid_enpessant(self, pos, new_pos):
         """TO DO: return True if we can capture enpessant"""
-        return False
+        #move diagonally
+        delta = get_delta(pos, new_pos)
+        piece = self.get_square(pos)
+        if not isinstance(piece, Pawn):
+            return False
+        if not (new_pos in piece.get_possible_moves() and abs(delta[0]) == 1):
+            return False
+        #piece next to us (opposite colour)
+        op_position = tuple_add(pos, (delta[0], 0))
+        op_piece = self.get_square(op_position)
+        if op_piece is None or op_piece.colour == piece.colour:
+            return False
+        #piece has just moved.
+        if self.prev_piece != op_piece:
+            return False
+        return True
 
     def is_enpessant(self, pos, new_pos):
         """TO DO: return True if the move is an enpessant"""
+        piece = self.get_square(pos)
+        delta = get_delta(pos, new_pos)
+        return isinstance(piece, Pawn) and abs(delta[0]) == 1 and self.get_square(new_pos) is None
+        
+
+
 
     def is_castle(self, pos, new_pos):
         piece = self.get_square(pos)
@@ -191,7 +213,9 @@ class Board():
 
         if self.is_enpessant(pos, new_pos):
             #remove the piece we are capturing!!
-            pass
+            op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
+            op_piece = self.get_square(op_position)
+            self.replace_square(op_position, None)
 
         #Move the piece
         self.change_piece_position(pos, new_pos, None)
@@ -199,13 +223,16 @@ class Board():
         if self.in_check(self.turn):
             #backtrack
             self.backtrack(piece, pos, new_pos, dest)
+            if self.is_enpessant(pos, new_pos):
+            #put the captured piece back
+                self.replace_square(op_position, op_piece)
             return False
         
         self.backtrack(piece, pos, new_pos, dest)
 
         if self.is_enpessant(pos, new_pos):
             #put the captured piece back
-            pass
+            self.replace_square(op_position, op_piece)
 
         return True
 
@@ -258,10 +285,13 @@ class Board():
 
         if self.is_enpessant(pos, new_pos):
             #capture the piece
-            pass
+            op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
+            self.replace_square(op_position, None)
 
         self.change_piece_position(pos, new_pos, promotion)
-        self.get_square(new_pos).move_piece(new_pos)
+        piece = self.get_square(new_pos)
+        piece.move_piece(new_pos)
+        self.prev_piece = piece
         self.change_turn()
 
     def get_promotion_piece(self, piece, promotion):
