@@ -35,11 +35,48 @@ def game_loop(board, view, file=None):
                     print(f"CHECKMATE. {board.turn} wins")
                     break
 
+class Main():
+
+    def __init__(self, board, view):
+        self.board = board
+        self.view = view
+        self.piece_held = None
+
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    self.left_click_handler(event)
+
+            view.show_board(board.board)
+            print(self.piece_held)
+
+
+
+    def left_click_handler(self, event):
+        x, y = event.pos
+        if self.piece_held:
+            target = self.view.get_piece(x,y)
+            if self.board.can_move_piece(self.piece_held, target):
+                moveset = (self.piece_held, target, None)
+                self.board.move_piece(moveset)
+                self.piece_held = None
+            else:
+                self.piece_held = target
+        else:
+            self.piece_held = self.view.get_piece(x,y)
+
+
+
+
+
+
 if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
     cmd_parser.add_argument("file", nargs='?', default=None, help="specify a PGN file to run")
     args = cmd_parser.parse_args()
     view = View()
+    board = Board()
+    Main(board, view)
     while True:
         board = Board()
         game_loop(board, view, args.file)

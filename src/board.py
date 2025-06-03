@@ -210,7 +210,7 @@ class Board():
             self.replace_square(op_position, None)
 
         #Move the piece
-        self.change_piece_position(pos, new_pos)
+        self.change_piece_position(pos, new_pos, None)
 
         if self.in_check(self.turn):
             #backtrack

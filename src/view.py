@@ -55,11 +55,27 @@ class View():
     """composite class that instantiates all view objects + the game window"""
     def __init__(self):
         self.SCREEN_SIZE = (900, 900)
+        self.BOARD_LOC = (self.SCREEN_SIZE[0] * 0.05, self.SCREEN_SIZE[1] * 0.05) 
+        self.BOARD_SIZE = self.SCREEN_SIZE[0] * 0.75
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
-        self.board = BoardView((self.SCREEN_SIZE[0] * 0.75, self.SCREEN_SIZE[0] * 0.75)) #board is half the size of screen
+        self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
     def show_board(self, board):
         self.board.make_board(board)
-        self.window.blit(self.board, (self.SCREEN_SIZE[0] * 0.05, self.SCREEN_SIZE[1] * 0.05))
+        self.window.blit(self.board, self.BOARD_LOC)
         pg.display.flip()
+
+    def get_piece(self, x, y):
+        if x < self.BOARD_LOC[0] or x > self.BOARD_LOC[0] + self.BOARD_SIZE:
+            return None
+
+        if y < self.BOARD_LOC[1] or x > self.BOARD_LOC[1] + self.BOARD_SIZE:
+            return None
+
+        x = (x - self.BOARD_LOC[0]) // (self.BOARD_SIZE // 8)
+        y = 7 - (y - self.BOARD_LOC[1]) // (self.BOARD_SIZE // 8)
+        
+        return (int(x), int(y))
+
+
 
