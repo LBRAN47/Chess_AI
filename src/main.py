@@ -47,8 +47,7 @@ class Main():
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
 
-            view.show_board(board.board)
-            print(self.piece_held)
+            view.show_board(board.board, self.piece_held)
 
 
 

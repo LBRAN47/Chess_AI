@@ -5,7 +5,9 @@ import os
 directory = os.path.dirname(os.path.abspath(__file__))
 GREEN = (118, 150, 86)
 CREAM = (238,238,210)
+WHITE = (255,255,255)
 
+BLUE = pg.Color(0,76,153)
 def get_piece_filename(piece):
     """assumes piece is a Piece instance"""
     piece_file = str(piece) + piece.colour + ".png"
@@ -20,6 +22,7 @@ class BoardView(pg.Surface):
         self.square_dims = (width // 8, height // 8)
         self.square_width, self.square_height = self.square_dims
         self.img_cache = {}
+        self.selected = None
 
     def make_board(self, board):
         """draws the board and pieces onto the surface, where board is a 2D array of pieces"""
@@ -35,8 +38,16 @@ class BoardView(pg.Surface):
                 self.draw_piece(square, x, y, row, col)
 
     def draw_square(self, x, y, row, col):
+
         color = CREAM if (row + col) % 2 == 0 else GREEN
         pg.draw.rect(self, color, pg.Rect(x, y, self.square_width, self.square_height))
+
+        if self.is_selected_piece(row, col):
+            s = pg.Surface(self.square_dims)
+            s.set_alpha(64)
+            s.fill(BLUE)
+            self.blit(s, (x,y))
+            pg.draw.rect(self, WHITE, pg.Rect(x, y, self.square_width, self.square_height), 5)
 
     def draw_piece(self, square, x, y, row, col): 
         if square is None:
@@ -51,6 +62,9 @@ class BoardView(pg.Surface):
         self.blit(img, (x,y))
         self.board[row][col] = img
 
+    def is_selected_piece(self, row, col):
+        return self.selected is not None and self.selected == (col, row)
+
 class View():
     """composite class that instantiates all view objects + the game window"""
     def __init__(self):
@@ -60,7 +74,8 @@ class View():
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
-    def show_board(self, board):
+    def show_board(self, board, selected):
+        self.board.selected = selected
         self.board.make_board(board)
         self.window.blit(self.board, self.BOARD_LOC)
         pg.display.flip()
