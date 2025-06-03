@@ -1,12 +1,11 @@
 from board import Board
-from view import BoardView
+from view import View
 from parser import Parser
 import argparse
 import pygame as pg
 
-def game_loop(board, window, file=None):
+def game_loop(board, view, file=None):
     parser = Parser()
-    board_view = BoardView((500, 500))
     if file is not None:
         with open(file) as f:
             moves = parser.parse_PGN(f.read())
@@ -15,9 +14,7 @@ def game_loop(board, window, file=None):
         print("Press ENTER to show next move")
     while True:
             board.print_board()
-            board_view.make_board(board.board)
-            window.blit(board_view, (100, 100))
-            pg.display.flip()
+            view.show_board(board.board)
             if file is None:
                 print(f"Turn: {board.turn}")
                 move = input("Make a move: ")
@@ -42,10 +39,10 @@ if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
     cmd_parser.add_argument("file", nargs='?', default=None, help="specify a PGN file to run")
     args = cmd_parser.parse_args()
-    window = pg.display.set_mode((800, 800))
+    view = View()
     while True:
         board = Board()
-        game_loop(board, window, args.file)
+        game_loop(board, view, args.file)
         ans = input("Play Again? ")
         if ans not in ['y', 'Y', 'yes']:
             break
