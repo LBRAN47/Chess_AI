@@ -3,11 +3,13 @@ import pygame as pg
 import os
 
 directory = os.path.dirname(os.path.abspath(__file__))
-GREEN = (118, 150, 86)
-CREAM = (238,238,210)
-WHITE = (255,255,255)
+GREEN = pg.Color(118, 150, 86)
+CREAM = pg.Color(238,238,210)
+WHITE = pg.Color(255,255,255)
 
+GREY = pg.Color(220,220,220)
 BLUE = pg.Color(0,76,153)
+
 def get_piece_filename(piece):
     """assumes piece is a Piece instance"""
     piece_file = str(piece) + piece.colour + ".png"
@@ -65,6 +67,17 @@ class BoardView(pg.Surface):
     def is_selected_piece(self, row, col):
         return self.selected is not None and self.selected == (col, row)
 
+    def show_possible_moves(self, board, board_loc):
+        if self.selected is None:
+            return
+        print(self.selected)
+        selected = board[7 - self.selected[1]][self.selected[0]]
+        for coords in selected.get_possible_moves():
+            coords = (board_loc[0] + (coords[0]) * self.square_width,
+                      board_loc[1] + (coords[1]) * self.square_width)
+            #coords = (coords[0] + (self.square_width // 2), coords[1] + (self.square_width // 2))
+            pg.draw.circle(self, GREY, coords, self.square_width // 5)
+
 class View():
     """composite class that instantiates all view objects + the game window"""
     def __init__(self):
@@ -77,8 +90,12 @@ class View():
     def show_board(self, board, selected):
         self.board.selected = selected
         self.board.make_board(board)
+        self.board.show_possible_moves(board, self.BOARD_LOC)
         self.window.blit(self.board, self.BOARD_LOC)
         pg.display.flip()
+
+
+            
 
     def get_piece(self, x, y):
         if x < self.BOARD_LOC[0] or x > self.BOARD_LOC[0] + self.BOARD_SIZE:
