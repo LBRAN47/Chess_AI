@@ -52,13 +52,13 @@ class Pawn(Piece):
 
     def get_possible_moves(self):
         if self.colour == "WHITE":
-            DELTAS = [(1,1), (-1,1), (0,1)]
-            if not self.has_moved:
-                DELTAS.append((0,2))
-        elif self.colour == "BLACK":
             DELTAS = [(1,-1), (-1,-1), (0,-1)]
             if not self.has_moved:
                 DELTAS.append((0,-2))
+        elif self.colour == "BLACK":
+            DELTAS = [(1,1), (-1,1), (0,1)]
+            if not self.has_moved:
+                DELTAS.append((0,2))
         else:
             raise NameError("Incorrect piece colour")
 

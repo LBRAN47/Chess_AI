@@ -18,7 +18,7 @@ class Board():
         for i in range(8):
             row = []
             if i == 0 or i == 7:
-                colour = WHITE if i == 0 else BLACK
+                colour = WHITE if i == 7 else BLACK
                 row.append(Rook((0, i), colour))
                 row.append(Knight((1, i), colour))
                 row.append(Bishop((2, i), colour))
@@ -28,20 +28,20 @@ class Board():
                 row.append(Knight((6, i), colour))
                 row.append(Rook((7, i), colour))
             elif i == 1 or i == 6:
-                colour = WHITE if i == 1 else BLACK
+                colour = WHITE if i == 6 else BLACK
                 for j in range(8):
                     row.append(Pawn((j,i), colour))
             else:
                 for j in range(8):
                     row.append(None)
             board.append(row)
-        self.black_king_pos = (4, 7) 
-        self.white_king_pos = (4, 0)
+        self.black_king_pos = (4, 0) 
+        self.white_king_pos = (4, 7)
         self.board = board
 
     def print_board(self):
         print()
-        for row in range(7, -1, -1):
+        for row in range(8):
             row_string = f"{row+1} |"
             for col in range(8):
                 if self.board[row][col] is None:

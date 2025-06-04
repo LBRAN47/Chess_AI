@@ -32,7 +32,6 @@ class BoardView(pg.Surface):
         self.board = [[None]*cols for _ in range(rows)]
         for row in range(rows):
             y = row * self.square_height
-            row = 7 - row #ensuring we print rows in the correct order
             for col in range(cols):
                 x = col * self.square_width
                 square = board[row][col]
@@ -67,16 +66,19 @@ class BoardView(pg.Surface):
     def is_selected_piece(self, row, col):
         return self.selected is not None and self.selected == (col, row)
 
-    def show_possible_moves(self, board, board_loc):
+    def show_possible_moves(self, board_obj, board_loc):
         if self.selected is None:
             return
         print(self.selected)
-        selected = board[7 - self.selected[1]][self.selected[0]]
+
+        selected = board_obj.get_square((self.selected[0], self.selected[1]))
+        if selected is None:
+            return
         for coords in selected.get_possible_moves():
-            coords = (board_loc[0] + (coords[0]) * self.square_width,
-                      board_loc[1] + (coords[1]) * self.square_width)
-            #coords = (coords[0] + (self.square_width // 2), coords[1] + (self.square_width // 2))
-            pg.draw.circle(self, GREY, coords, self.square_width // 5)
+            if board_obj.can_move_piece(selected.position, coords):
+                coords = (board_loc[0] + (coords[0]) * self.square_width,
+                          board_loc[1] + (coords[1]) * self.square_width)
+                pg.draw.circle(self, GREY, coords, self.square_width // 5)
 
 class View():
     """composite class that instantiates all view objects + the game window"""
@@ -87,17 +89,16 @@ class View():
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
-    def show_board(self, board, selected):
+    def show_board(self, board_obj, selected):
+        board = board_obj.board
         self.board.selected = selected
         self.board.make_board(board)
-        self.board.show_possible_moves(board, self.BOARD_LOC)
+        self.board.show_possible_moves(board_obj, self.BOARD_LOC)
         self.window.blit(self.board, self.BOARD_LOC)
-        pg.display.flip()
-
-
-            
+        pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
 
     def get_piece(self, x, y):
+        """return board coordinates based on x and y"""
         if x < self.BOARD_LOC[0] or x > self.BOARD_LOC[0] + self.BOARD_SIZE:
             return None
 
@@ -105,7 +106,7 @@ class View():
             return None
 
         x = (x - self.BOARD_LOC[0]) // (self.BOARD_SIZE // 8)
-        y = 7 - (y - self.BOARD_LOC[1]) // (self.BOARD_SIZE // 8)
+        y = (y - self.BOARD_LOC[1]) // (self.BOARD_SIZE // 8)
         
         return (int(x), int(y))
 

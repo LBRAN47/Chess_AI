@@ -14,7 +14,7 @@ def game_loop(board, view, file=None):
         print("Press ENTER to show next move")
     while True:
             board.print_board()
-            view.show_board(board.board)
+            view.show_board(board)
             if file is None:
                 print(f"Turn: {board.turn}")
                 move = input("Make a move: ")
@@ -47,7 +47,7 @@ class Main():
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
 
-            view.show_board(board.board, self.piece_held)
+            view.show_board(self.board, self.piece_held)
 
 
 
@@ -59,10 +59,9 @@ class Main():
                 moveset = (self.piece_held, target, None)
                 self.board.move_piece(moveset)
                 self.piece_held = None
-            else:
-                self.piece_held = target
-        else:
-            self.piece_held = self.view.get_piece(x,y)
+                return
+        coords = self.view.get_piece(x,y)
+        self.piece_held = coords if self.board.get_square(coords) is not None else None
 
 
 
