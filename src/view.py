@@ -66,18 +66,16 @@ class BoardView(pg.Surface):
     def is_selected_piece(self, row, col):
         return self.selected is not None and self.selected == (col, row)
 
-    def show_possible_moves(self, board_obj, board_loc):
+    def show_possible_moves(self, board_obj):
         if self.selected is None:
             return
-        print(self.selected)
-
         selected = board_obj.get_square((self.selected[0], self.selected[1]))
         if selected is None:
             return
         for coords in selected.get_possible_moves():
             if board_obj.can_move_piece(selected.position, coords):
-                coords = (board_loc[0] + (coords[0]) * self.square_width,
-                          board_loc[1] + (coords[1]) * self.square_width)
+                coords = ((coords[0]) * self.square_width + (self.square_width // 2),
+                          (coords[1]) * self.square_width + (self.square_width // 2))
                 pg.draw.circle(self, GREY, coords, self.square_width // 5)
 
 class View():
@@ -85,7 +83,7 @@ class View():
     def __init__(self):
         self.SCREEN_SIZE = (900, 900)
         self.BOARD_LOC = (self.SCREEN_SIZE[0] * 0.05, self.SCREEN_SIZE[1] * 0.05) 
-        self.BOARD_SIZE = self.SCREEN_SIZE[0] * 0.75
+        self.BOARD_SIZE = min(self.SCREEN_SIZE) * 0.75
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
@@ -93,7 +91,7 @@ class View():
         board = board_obj.board
         self.board.selected = selected
         self.board.make_board(board)
-        self.board.show_possible_moves(board_obj, self.BOARD_LOC)
+        self.board.show_possible_moves(board_obj)
         self.window.blit(self.board, self.BOARD_LOC)
         pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
 
