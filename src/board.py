@@ -315,6 +315,17 @@ class Board():
                             return False
         return True
 
+    def get_pieces(self):
+        """Returns a list of every piece in the board"""
+        ret = []
+        for i in range(8):
+            for j in range(8):
+                piece = self.get_square((i,j))
+                if piece is not None:
+                    ret.append(piece)
+        return ret
+
+
 
 
                         

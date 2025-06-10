@@ -1,9 +1,11 @@
 from board import Board
 from parser import Parser
+from evaluator import Evaluator
 import argparse
 
 def game_loop(board, file=None):
     parser = Parser()
+    eval = Evaluator()
     if file is not None:
         with open(file) as f:
             moves = parser.parse_PGN(f.read())
@@ -12,6 +14,7 @@ def game_loop(board, file=None):
         print("Press ENTER to show next move")
     while True:
             board.print_board()
+            print("Evaluation: ", eval.evaluate(board))
             if file is None:
                 print(f"Turn: {board.turn}")
                 move = input("Make a move: ")
