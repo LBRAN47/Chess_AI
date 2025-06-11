@@ -1,56 +1,59 @@
 from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
-from parser import Parser
 import time
-
-WHITE = "WHITE"
-BLACK = "BLACK"
+from util import (WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
+                  WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
+                  Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
+                  EMPTY)
 
 class Board():
 
-    def __init__(self):
-        self.make_board()
-        self.turn = WHITE
-        self.prev_piece = None
-
-    def make_board(self):
-        """Generate the starting chess board"""
-        board = []
-        for i in range(8):
-            row = []
-            if i == 0 or i == 7:
-                colour = WHITE if i == 0 else BLACK
-                row.append(Rook((0, i), colour))
-                row.append(Knight((1, i), colour))
-                row.append(Bishop((2, i), colour))
-                row.append(Queen((3, i), colour))
-                row.append(King((4, i), colour))
-                row.append(Bishop((5, i), colour))
-                row.append(Knight((6, i), colour))
-                row.append(Rook((7, i), colour))
-            elif i == 1 or i == 6:
-                colour = WHITE if i == 1 else BLACK
-                for j in range(8):
-                    row.append(Pawn((j,i), colour))
-            else:
-                for j in range(8):
-                    row.append(None)
-            board.append(row)
-        self.black_king_pos = (4, 7) 
-        self.white_king_pos = (4, 0)
+    def __init__(self, board: ListBoard, turn: int=WHITE,
+                 castling: int=ALL, ep_target: Coordinate | None=None,
+                 halfs: int=0, fulls: int=0):
         self.board = board
+        self.turn = turn
+        self.castling = castling
+        self.ep_target = ep_target
+        self.halfs = halfs
+        self.fulls = fulls
 
-    def print_board(self):
-        print()
-        for row in range(7, -1, -1):
+    def show_board(self):
+        ans = ""
+        for row in range(8):
             row_string = f"{row+1} |"
             for col in range(8):
-                if self.board[row][col] is None:
+                if self.board[row][col] == EMPTY:
                     row_string += " "
                 else:
-                    row_string += str(self.board[row][col])
+                    row_string += INV_PIECES[self.board[row][col]]
                 row_string += "|"
-            print(row_string)
-        print("   a b c d e f g h")
+            ans += row_string + '\n'
+        ans += "   a b c d e f g h\n"
+        return ans
+
+    def __str__(self):
+        ans = ""
+        ans += self.show_board()
+        ans += f"Turn: {'white' if self.turn == WHITE else 'black'}\n"
+        castle_strs = []
+        if self.castling & WHITE_K_CASTLE:
+            castle_strs.append("White Kingside")
+        if self.castling & WHITE_Q_CASTLE:
+            castle_strs.append("White Queenside")
+        if self.castling & BLACK_K_CASTLE:
+            castle_strs.append("Black Kingside")
+        if self.castling & BLACK_Q_CASTLE:
+            castle_strs.append("Black Queenside")
+        ans += "Castling: \n"
+        for castle in castle_strs:
+            ans += castle + '\n'
+        ep = '-' if self.ep_target is None else coordinate_to_square(self.ep_target)
+        ans += f"ep target square: {ep}\n"
+        ans += f"moves til 50 move rule: {self.halfs}\n"
+        ans += f"move: {self.fulls}\n"
+        return ans
+
+
 
     def get_square(self, position):
         """Return the piece at position, or None if no piece is at position"""
