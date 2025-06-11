@@ -1,7 +1,8 @@
 from pieces import Pawn
 from board import Board
-from util import (WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
-                  CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, TRUE_RC, COLUMN_CONVERT, ROW_CONVERT, PIECES)
+from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
+                  CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, TRUE_RC, COLUMN_CONVERT, ROW_CONVERT, PIECES,
+                  coordinate_to_square, INV_CASTLES)
 
 def parse_FEN(text: str):
     board, turn, castling, ep_target, halfs, fulls = text.split()
@@ -57,6 +58,54 @@ def get_ep_target(text: str) -> Coordinate | None:
     else:
         return convert_coordinate(text)
 
+def board_to_FEN(board: Board) -> str:
+    """Reverse parse a board object to a FEN string"""
+    ans = get_board_str(board.board)
+    ans += " "
+    ans += get_turn_str(board.turn)
+    ans += " "
+    ans += get_castling_str(board.castling)
+    ans += " "
+    ans += coordinate_to_square(board.ep_target) if board.ep_target is not None else '-' #ep target
+    ans += " "
+    ans += str(board.halfs)
+    ans += " "
+    ans += str(board.fulls)
+    return ans
+
+def get_board_str(board: ListBoard) -> str:
+    """return the FEN board string from the ListBoard"""
+    ans = ""
+    for row in board:
+        square_count = 0
+        for square in row:
+            if square == EMPTY:
+                square_count += 1
+            else:
+                if square_count > 0:
+                    ans += str(square_count)
+                    square_count = 0
+                ans += INV_PIECES[square]
+        if square_count > 0:
+            ans += str(square_count)
+        ans += '/'
+    return ans[:-1] #remove ending / (not in FEN notation)
+
+def get_turn_str(turn: int):
+    return 'w' if turn == WHITE else 'b'
+
+def get_castling_str(castle: int):
+    ans = ""
+    for i in range(4):
+        mask = 1 << (3 - i)
+        if castle & mask:
+            ans += INV_CASTLES[mask]
+    return ans
+
+
+
+
+    
 
 
         
@@ -289,10 +338,26 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
     return moveset
 
 if __name__ == "__main__":
-    b0 = parse_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    b1 =parse_FEN("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
-    b2 =parse_FEN("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2")
-    b3 =parse_FEN("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
+    s0 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    s1 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    s2 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
+    s3 = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+    b0 = parse_FEN(s0)
+    print(board_to_FEN(b0))
+    print(s0)
+    print()
+    b1 =parse_FEN(s1)
+    print(board_to_FEN(b1))
+    print(s1)
+    print()
+    b2 =parse_FEN(s2)
+    print(board_to_FEN(b2))
+    print(s2)
+    print()
+    b3 =parse_FEN(s3)
+    print(board_to_FEN(b3))
+    print(s3)
+    print()
     print(b0)
     print(b1)
     print(b2)
