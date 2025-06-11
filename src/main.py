@@ -14,6 +14,7 @@ def game_loop(board, file=None):
         print("Press ENTER to show next move")
     while True:
             board.print_board()
+            eval.eval_minmax(board)
             print("Evaluation: ", eval.evaluate(board))
             if file is None:
                 print(f"Turn: {board.turn}")
@@ -29,6 +30,25 @@ def game_loop(board, file=None):
             moveset = parser.parse_move(move, board)
             if moveset is not None:
                 board.move_piece(moveset)
+                if board.in_checkmate(board.turn):
+                    board.change_turn()
+                    print(f"CHECKMATE. {board.turn} wins")
+                    break
+
+def game_loop_AI(board, file=None):
+    parser = Parser()
+    eval = Evaluator()
+    while True:
+            board.print_board()
+            if board.turn == "WHITE":
+                move = input("Make a move: ")
+                moveset = parser.parse_move(move, board)
+            else:
+                _, moveset = eval.get_best_move(board)
+                print(moveset)
+            if moveset is not None:
+                board.move_piece(moveset)
+                print(board.turn, "YEET")
                 if board.in_checkmate(board.turn):
                     board.change_turn()
                     print(f"CHECKMATE. {board.turn} wins")

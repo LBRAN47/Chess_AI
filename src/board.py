@@ -1,16 +1,22 @@
 from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
 from parser import Parser
 import time
+import random
 
 WHITE = "WHITE"
 BLACK = "BLACK"
 
 class Board():
 
-    def __init__(self):
-        self.make_board()
-        self.turn = WHITE
-        self.prev_piece = None
+    def __init__(self, board=None, turn=WHITE, prev_piece=None, wkp=(4,0), bkp=(4,7)):
+        if board is None:
+            self.make_board()
+        else:
+            self.board = board
+        self.turn = turn
+        self.prev_piece = prev_piece
+        self.black_king_pos = bkp
+        self.white_king_pos = wkp
 
     def make_board(self):
         """Generate the starting chess board"""
@@ -35,8 +41,6 @@ class Board():
                 for j in range(8):
                     row.append(None)
             board.append(row)
-        self.black_king_pos = (4, 7) 
-        self.white_king_pos = (4, 0)
         self.board = board
 
     def print_board(self):
@@ -325,11 +329,17 @@ class Board():
                     ret.append(piece)
         return ret
 
+    def get_possible_moves(self):
+        moves = []
+        for piece in self.get_pieces():
+            if piece.colour == self.turn:
+                position = piece.position
+                for move in piece.get_possible_moves():
+                    if self.can_move_piece(position, move):
+                        moveset = (position, move, None)
+                        moves.append(moveset)
+        return moves
 
-
-
-                        
-        
 
 
 def get_delta(pos, new_pos):
@@ -366,4 +376,10 @@ def interpreter(text):
     return squares
 
 
-   
+if __name__ == "__main__":
+    board = Board()
+    while True:
+        moveset = random.choice(board.get_possible_moves())
+        ans = board.move_piece(moveset)
+        board.print_board()
+        time.sleep(1)
