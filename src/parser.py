@@ -18,23 +18,15 @@ def get_board(text: str) -> ListBoard:
     """Takes in the board segment of the FEN, and returns a ListBoard.
     Where 0 is an empty square"""
     board = []
-    current_row = []
-    text += "/" #helps parser to store the final row
     for square in text:
-        if square == '/': #end of row
-            if len(current_row) != 8:
-                raise Exception(f"invalid length row: in row {len(board) + 1}")
-            else:
-                board.append(current_row)
-                current_row = []
-        elif square.isdigit(): #empty squares
+        if square.isdigit(): #empty squares
             for _ in range(int(square)):
-                current_row.append(EMPTY)
+                board.append(EMPTY)
         elif square in PIECES.keys():
-            current_row.append(PIECES[square])
-    if len(board) != 8:
-                raise Exception(f"invalid # of collumns: {len(board)} expected 8")
-    return board
+            board.append(PIECES[square])
+    if len(board) != 64:
+                raise Exception(f"invalid FEN board size: {len(board)} expected 64")
+    return ListBoard(board)
 
 def get_castling(text: str) -> int:
     """Returns the a 4-bit integer where:
@@ -76,9 +68,10 @@ def board_to_FEN(board: Board) -> str:
 def get_board_str(board: ListBoard) -> str:
     """return the FEN board string from the ListBoard"""
     ans = ""
-    for row in board:
+    for row in range(board.rows):
         square_count = 0
-        for square in row:
+        for col in range(board.rows):
+            square = board.get(col, row)
             if square == EMPTY:
                 square_count += 1
             else:
@@ -89,7 +82,7 @@ def get_board_str(board: ListBoard) -> str:
         if square_count > 0:
             ans += str(square_count)
         ans += '/'
-    return ans[:-1] #remove ending / (not in FEN notation)
+    return ans[:-1] #remove last /
 
 def get_turn_str(turn: int):
     return 'w' if turn == WHITE else 'b'
@@ -102,13 +95,6 @@ def get_castling_str(castle: int):
             ans += INV_CASTLES[mask]
     return ans
 
-
-
-
-    
-
-
-        
 
 def parse_PGN( pgn):
     """Given a string of a PGN (Portable Game Notation) file, return a list

@@ -20,12 +20,13 @@ class Board():
     def show_board(self):
         ans = ""
         for row in range(8):
-            row_string = f"{row+1} |"
+            row_string = f"{abs(row - 8)} |"
             for col in range(8):
-                if self.board[row][col] == EMPTY:
+                square = self.board.get(col, row)
+                if square == EMPTY:
                     row_string += " "
                 else:
-                    row_string += INV_PIECES[self.board[row][col]]
+                    row_string += INV_PIECES[square]
                 row_string += "|"
             ans += row_string + '\n'
         ans += "   a b c d e f g h\n"

@@ -1,6 +1,6 @@
+import math
 
 type Piece = int
-type ListBoard = list[list[Piece]]
 type Coordinate = tuple[int, int]
 
 KING = 2
@@ -51,4 +51,43 @@ def coordinate_to_square(c: Coordinate) -> str:
             break
     return ans
 
-            
+class ListBoard():
+    """Simple data structure to simulate 2D array functionality w/ a 1D array"""
+
+    def __init__(self, board_list: list[Piece], rows:int | None=None):
+        self.board = board_list
+        self.length = len(board_list)
+        self.rows = rows if rows is not None else int(math.sqrt(self.length))
+
+    def __getitem__(self, index: int):
+        """returns the row. This allows for use of double square brackets for individual lookup"""
+        if index >= self.rows:
+            raise IndexError("Index out of range")
+        return self.board[index*self.rows:(index+1)*self.rows]
+
+    def __setitem__(self, index: int, item: list[Piece]):
+        for i in range(8):
+            self.board[self.rows*index + i] = item[i]
+
+    def get_true_index(self, index: int | Coordinate, row: int | None=None):
+        """from a set of coordinates, return the index to the concrete list"""
+        if type(index) is not int:
+            col, row = index
+        else:
+            col = index
+        return self.rows*row + col 
+
+    def get(self, index: int | Coordinate, row: int | None=None):
+        """get allows for either a Coordinate or 2 integers to
+        be passed. And returns the value accordingly"""
+        return self.board[self.get_true_index(index, row)]
+
+    def set(self, value:Piece, index: int | Coordinate, row: int | None=None):
+        """set the value at the coordinate, or row and column"""
+        idx = self.get_true_index(index, row)
+        self.board[idx] = value
+
+
+
+
+
