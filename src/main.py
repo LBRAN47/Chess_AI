@@ -1,19 +1,19 @@
 from board import Board
-from parser import Parser
+from parser import (parse_PGN, parse_move)
+from util import WHITE
 import argparse
 
 def game_loop(board, file=None):
-    parser = Parser()
     if file is not None:
         with open(file) as f:
-            moves = parser.parse_PGN(f.read())
+            moves = parse_PGN(f.read())
         print(f"Generating game from {file}...")
-        print(f"\n{parser.headers['White']} vs. {parser.headers['Black']}\n")
+        #print(f"\n{parser.headers['White']} vs. {parser.headers['Black']}\n")
         print("Press ENTER to show next move")
     while True:
-            board.print_board()
+            print(board.show_board())
             if file is None:
-                print(f"Turn: {board.turn}")
+                print(f"Turn: {'WHITE' if board.turn == WHITE else 'BLACK'}")
                 move = input("Make a move: ")
             else:
                 if len(moves) == 0:
@@ -23,7 +23,7 @@ def game_loop(board, file=None):
                 print(move)
                 input() #wait for enter
 
-            moveset = parser.parse_move(move, board)
+            moveset = parse_move(move, board)
             if moveset is not None:
                 board.move_piece(moveset)
                 if board.in_checkmate(board.turn):

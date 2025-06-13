@@ -3,24 +3,43 @@ import math
 type Piece = int
 type Coordinate = tuple[int, int]
 
+EMPTY = 0
+PAWN = 1
 KING = 2
 QUEEN = 3
-ROOK = 6
 BISHOP = 4
 KNIGHT = 5
-PAWN = 1
+ROOK = 6
 BLACK = 0
 WHITE = 8
-EMPTY = 0
 
+WHITE_PAWN = WHITE | PAWN
+BLACK_PAWN = BLACK | PAWN
+WHITE_BISHOP = WHITE | BISHOP
+BLACK_BISHOP = BLACK | BISHOP
+WHITE_KNIGHT = WHITE | KNIGHT
+BLACK_KNIGHT = BLACK | KNIGHT
+WHITE_ROOK = WHITE | ROOK
+BLACK_ROOK = BLACK | ROOK
+WHITE_QUEEN = WHITE | QUEEN
+BLACK_QUEEN = BLACK | QUEEN
+WHITE_KING = WHITE | KING
+BLACK_KING = BLACK | KING
 
-PIECES = {"P": WHITE | PAWN, "p" : BLACK | PAWN,
-        "B": WHITE | BISHOP, "b" : BLACK | BISHOP,
-        "N": WHITE | KNIGHT, "n" : BLACK | KNIGHT,
-        "R": WHITE | ROOK, "r" : BLACK | ROOK,
-        "Q": WHITE | QUEEN, "q" : BLACK | QUEEN,
-        "K": WHITE | KING, "k" : BLACK | KING}
+PIECES = {"P": WHITE_PAWN, "p" : BLACK_PAWN,
+        "B": WHITE_BISHOP, "b" : BLACK_BISHOP,
+        "N": WHITE_KNIGHT, "n" : BLACK_KNIGHT,
+        "R": WHITE_ROOK, "r" : BLACK_ROOK,
+        "Q": WHITE_QUEEN, "q" : BLACK_QUEEN,
+        "K": WHITE_KING, "k" : BLACK_KING}
 INV_PIECES = {value: key for key, value in PIECES.items()}
+
+START_BOARD = [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK] \
+              + ([BLACK_PAWN] * 8) \
+              + ([EMPTY] * 8 * 4) \
+              + ([WHITE_PAWN] * 8) \
+              + [WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_QUEEN, WHITE_KING, WHITE_BISHOP, WHITE_KNIGHT, WHITE_ROOK]
+
 
 WHITE_K_CASTLE = 8
 WHITE_Q_CASTLE = 4
@@ -50,6 +69,46 @@ def coordinate_to_square(c: Coordinate) -> str:
             ans += key
             break
     return ans
+
+def get_colour(piece: Piece) -> int:
+    """Return the colour of the piece (i.e such that return value in [WHITE, BLACK])"""
+    return piece & (1 << 3)
+
+def strip_piece(piece: Piece) -> Piece:
+    """Returns the piece striped of its colour (e.g. strip_piece(BLACK | BISHOP) == BISHOP)"""
+    return piece & (1 << 2 | 1 << 1 | 1 << 0)
+
+def tuple_add(a, b):
+    """
+    returns the element-wise addition of 2 tuples
+    e.g. tuple_add((1, 1), (3, -2)) == (4, -1)
+    """
+    return tuple(map(sum, zip(a,b)))
+
+def tuple_diff(a, b):
+    """
+    Return the difference from a to b
+    """
+    return (b[0] - a[0], b[1] - a[1])
+
+def out_of_bounds(x):
+    """
+    returns true if any element in x is outside of the bounds 0 to 7
+    """
+    for num in x:
+        if num > 7 or num < 0:
+            return True
+    return False
+
+def filter_oob(x):
+    return not out_of_bounds(x)
+
+
+def remove_oob(moves):
+    """
+    takes a list of moves and removes any out of bounds moves
+    """
+    return list(filter(filter_oob, moves))
 
 class ListBoard():
     """Simple data structure to simulate 2D array functionality w/ a 1D array"""
@@ -88,6 +147,7 @@ class ListBoard():
         self.board[idx] = value
 
 
+START_BOARD = ListBoard(START_BOARD)
 
 
 

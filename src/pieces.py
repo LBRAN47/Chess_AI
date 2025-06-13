@@ -1,28 +1,3 @@
-def tuple_add(a, b):
-    """
-    returns the element-wise addition of 2 tuples
-    e.g. tuple_add((1, 1), (3, -2)) == (4, -1)
-    """
-    return tuple(map(sum, zip(a,b)))
-
-def out_of_bounds(x):
-    """
-    returns true if any element in x is outside of the bounds 0 to 7
-    """
-    for num in x:
-        if num > 7 or num < 0:
-            return True
-    return False
-
-def filter_oob(x):
-    return not out_of_bounds(x)
-
-
-def remove_oob(moves):
-    """
-    takes a list of moves and removes any out of bounds moves
-    """
-    return list(filter(filter_oob, moves))
 
 class Piece():
 

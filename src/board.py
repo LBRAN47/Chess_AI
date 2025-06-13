@@ -1,13 +1,13 @@
-from pieces import (tuple_add, out_of_bounds, Pawn, Knight, Bishop, Rook, King, Queen)
+from pieces import (Pawn, Knight, Bishop, Rook, King, Queen)
 import time
-from util import (WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
+from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
-                  EMPTY)
+                  EMPTY, get_colour, strip_piece, tuple_add, tuple_diff, out_of_bounds)
 
 class Board():
 
-    def __init__(self, board: ListBoard, turn: int=WHITE,
+    def __init__(self, board: ListBoard=START_BOARD, turn: int=WHITE,
                  castling: int=ALL, ep_target: Coordinate | None=None,
                  halfs: int=0, fulls: int=0):
         self.board = board
@@ -56,15 +56,15 @@ class Board():
 
 
 
-    def get_square(self, position):
+    def get_square(self, position: Coordinate):
         """Return the piece at position, or None if no piece is at position"""
         if out_of_bounds(position):
             return None
-        return self.board[position[1]][position[0]]
+        return self.board.get(position)
 
-    def replace_square(self, position, piece):
+    def replace_square(self, position: Coordinate, piece: Piece):
         """replace the postiion in board with piece"""
-        self.board[position[1]][position[0]] = piece
+        self.board.set(piece, position)
         return
 
     def change_turn(self):
@@ -78,56 +78,105 @@ class Board():
         piece = self.get_square(pos)
         new_square = self.get_square(new_pos)
 
-        if piece is None:
+        if piece == EMPTY:
             return False
 
-        assert piece.position == pos
-
-        if not piece.can_move(new_pos):
-            return False
-
-
-        if new_square is not None:
-            if new_square.colour == piece.colour:
+        if new_square != EMPTY:
+            if get_colour(new_square) == get_colour(piece):
                 return False
         
-        if isinstance(piece, Pawn):
-            delta = get_delta(pos, new_pos)
+        if strip_piece(piece) == PAWN:
+            return self.validate_pawn(pos, new_pos)
 
-            if (delta[0] == 0 and new_square is not None):
-                return False
-            if (delta[0] != 0 and new_square is None):
-                return self.is_valid_enpessant(pos, new_pos) 
+        elif strip_piece(piece) == KNIGHT:
+            return self.validate_knight(pos, new_pos)
 
-        if isinstance(piece, Knight):
-            return True
-        
+        elif strip_piece(piece) == BISHOP:
+            return self.validate_bishop(pos, new_pos)
+
+        elif strip_piece(piece) == ROOK:
+            return self.validate_rook(pos, new_pos)
+
+        elif strip_piece(piece) == QUEEN:
+            return self.validate_queen(pos, new_pos)
+
+        elif strip_piece(piece) == KING:
+            return self.validate_king(pos, new_pos)
+
+
+    def check_slide(self, pos: Coordinate, new_pos: Coordinate):
+        """Checks that a sliding piece can move from pos to new_pos without
+        colliding with another piece."""
+
         delta = get_delta(pos, new_pos)
         ghost_pos = tuple_add(pos, delta)
         while ghost_pos != new_pos:
             square = self.get_square(ghost_pos)
-            if square is not None:
+            if square != EMPTY:
                 return False
             ghost_pos = tuple_add(ghost_pos, delta)
-
         return True
+
+    def validate_pawn(self, pos: Coordinate, new_pos: Coordinate):
+        """Validate pawn move from pos to new_pos, in the context of this board"""
+        piece = self.get_square(pos)
+        new_square = self.get_square(new_pos)
+        delta = get_delta(pos, new_pos)
+        diff = tuple_diff(pos, new_pos)
+
+        #Pawns by nature can move in the following ways:
+        # 1. One space forward
+        # 2. One space forward diagonally
+        # 3. Two spaces forward (given it is on the starting square)
+        #we check these are first satisfied
+        if get_colour(piece) == WHITE:
+            if diff[1] == 1:
+                if diff[0] not in [-1, 0, 1]:
+                    return False
+            elif diff[1] == 2:
+                if pos[1] != 1: #i.e not on starting square
+                    return False
+            else:
+                return False
+        elif get_colour(piece) == BLACK:
+            if diff[1] == -1:
+                if diff[0] not in [-1, 0, 1]:
+                    return False
+            elif diff[1] == -2:
+                if pos[1] != 6:
+                    return False
+            else:
+                return False
+        else:
+            raise ValueError(f"malformed piece {piece} at {pos}")
+
+        #now check that the move is valid in the context of the board. 
+        #The following rules apply:
+        # 1. If a pawn moves forward diagonally, it must be capturing a piece
+        # 2. If a pawn moves forward straight, there must be no piece in front of it
+        if (diff[0] == 0):
+            if new_square != EMPTY:
+                return False
+            #check inbetween square
+            tmp = tuple_add(pos, delta)
+            while tmp != new_pos:
+                if self.board.get(tmp) != EMPTY:
+                    return False
+        if (delta[0] != 0 and new_square != EMPTY):
+            return self.is_valid_enpessant(pos, new_pos) 
 
     def is_valid_enpessant(self, pos, new_pos):
         """Return True if we can capture enpessant"""
         #move diagonally
         delta = get_delta(pos, new_pos)
         piece = self.get_square(pos)
-        if not isinstance(piece, Pawn):
-            return False
-        if not (new_pos in piece.get_possible_moves() and abs(delta[0]) == 1):
-            return False
         #piece next to us (opposite colour)
-        op_position = tuple_add(pos, (delta[0], 0))
-        op_piece = self.get_square(op_position)
-        if op_piece is None or op_piece.colour == piece.colour:
+        target_position = tuple_add(pos, (delta[0], 0))
+        target_piece = self.get_square(target_position)
+        if target_piece != PAWN or get_colour(target_piece) == get_colour(piece):
             return False
         #piece has just moved.
-        if self.prev_piece != op_piece:
+        if self.ep_target != target_position:
             return False
         return True
 
@@ -287,7 +336,7 @@ class Board():
         self.change_piece_position(pos, new_pos, promotion)
         piece = self.get_square(new_pos)
         piece.move_piece(new_pos)
-        self.prev_piece = piece
+        self.ep_target = piece
         self.change_turn()
 
     def get_promotion_piece(self, piece, promotion):
