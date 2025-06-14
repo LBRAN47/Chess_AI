@@ -53,9 +53,10 @@ ALL = WHITE_K_CASTLE | WHITE_Q_CASTLE | BLACK_K_CASTLE | BLACK_Q_CASTLE
 PIECENAMES  = ['B', 'N', 'R', 'Q', 'K']
 COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 ROWS    = ['1', '2', '3', '4', '5', '6', '7', '8']
-TRUE_RC = [i for i in range(8)]
-COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_RC))
-ROW_CONVERT = dict(zip(ROWS, TRUE_RC))
+TRUE_C = [i for i in range(8)]
+TRUE_R = [i for i in range(7, -1, -1)]
+COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_C))
+ROW_CONVERT = dict(zip(ROWS, TRUE_R))
 
 def get_piece_name(piece: Piece):
     return INV_PIECES[piece]

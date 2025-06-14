@@ -4,7 +4,7 @@ from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, 
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
-                  WHITE_PAWN, BLACK_PAWN, get_delta, interpreter)
+                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, interpreter)
 
 class Game():
 
@@ -17,6 +17,12 @@ class Game():
         self.ep_target = ep_target
         self.halfs = halfs
         self.fulls = fulls
+        for col in range(8):
+            for row in range(8):
+                if self.get_square((col, row)) == WHITE_KING:
+                    self.white_king_pos = (col, row)
+                elif self.get_square((col, row)) == BLACK_KING:
+                    self.black_king_pos = (col, row)
 
     def show_board(self):
         ans = ""
@@ -300,15 +306,16 @@ class Game():
         for row in range(8):
             for collumn in range(8):
                 piece = self.get_square((collumn, row))
-                if piece is None:
+                if piece == EMPTY or piece is None:
                     continue
-                if piece.colour != player:
-                    if self.valid_move(piece.position, king_pos):
+                if get_colour(piece) != player:
+                    if self.valid_move((collumn, row), king_pos):
                         return True
         return False
 
     def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
+        return self.valid_move(pos, new_pos) and self.turn == get_colour(self.get_square(pos))
 
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
@@ -369,16 +376,14 @@ class Game():
         """move the piece w/o changing the turn"""
 
         piece = self.get_square(pos)
-        piece.position = new_pos
-        self.replace_square(pos, None)
+        self.replace_square(pos, EMPTY)
         if promotion is not None:
             piece = self.get_promotion_piece(piece, promotion)
         self.replace_square(new_pos, piece)
-        if isinstance(piece, King):
-            if piece.colour == WHITE:
-                self.white_king_pos = piece.position
-            else:
-                self.black_king_pos = piece.position
+        if piece == WHITE_KING:
+            self.white_king_pos = piece.position
+        elif piece == BLACK_KING:
+            self.black_king_pos = piece.position
 
 
     def move_piece(self, moveset):
@@ -398,12 +403,10 @@ class Game():
         if self.is_enpessant(pos, new_pos):
             #capture the piece
             op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
-            self.replace_square(op_position, None)
+            self.replace_square(op_position, EMPTY)
 
         self.change_piece_position(pos, new_pos, promotion)
-        piece = self.get_square(new_pos)
-        piece.move_piece(new_pos)
-        self.ep_target = piece
+        self.ep_target = new_pos
         self.change_turn()
 
     def get_promotion_piece(self, piece, promotion):
@@ -425,11 +428,11 @@ class Game():
         for row in range(8):
             for collumn in range(8):
                 piece = self.get_square((collumn, row))
-                if piece is None:
+                if piece == EMPTY or piece is None:
                     continue
-                pos = piece.position
-                if piece.colour == player:
-                    moves = piece.get_possible_moves()
+                pos = (collumn, row)
+                if get_colour(piece) == player:
+                    moves = self.generate_moves(pos)
                     for move in moves:
                         if self.can_move_piece(pos, move):
                             return False

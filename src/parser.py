@@ -1,8 +1,8 @@
 from pieces import Pawn
 from board import Game
 from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
-                  CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, TRUE_RC, COLUMN_CONVERT, ROW_CONVERT, PIECES,
-                  coordinate_to_square, INV_CASTLES)
+                  CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
+                  coordinate_to_square, INV_CASTLES, strip_piece)
 
 def parse_FEN(text: str):
     board, turn, castling, ep_target, halfs, fulls = text.split()
@@ -216,7 +216,7 @@ def parse_move(move, board):
 
 def parse_castle(move, board):
     """Return the castling moveset represented by move"""
-    row = 0 if board.turn == "WHITE" else 7
+    row = 7 if board.turn == "WHITE" else 0
     if move in ['0-0', 'O-O']: #short castle
         return ((4,row), (6,row), None)
     elif move in ['0-0-0', 'O-O-O']: #long castle
@@ -245,7 +245,6 @@ def parse_pawn(move, board):
                 ans = (coord, ending_square, None)
                 break
         if ans is None:
-            print(f"No valid move in Board for {move}")
             return
         if len(move) == 4:
             return ans
@@ -256,12 +255,11 @@ def parse_pawn(move, board):
             return
         for i in [-2, -1, 1, 2]:
             coord = (start_col, ending_square[1]+i)
-            if not isinstance(board.get_square(coord), Pawn):
+            if not strip_piece(board.get_square(coord)) == PAWN:
                 continue
             if board.can_move_piece(coord, ending_square):
-                ans =  (coord, ending_square, None)
+                ans = (coord, ending_square, None)
         if ans is None:
-            print(f"No valid move in Board for {move}")
             return
         if len(move) == 2:
             return ans
@@ -321,6 +319,7 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
             break
     if moveset is None:
         print(f"no piece {piece_str} able to move to {target_coords}\n Based on starting square: {start_coords}")
+    print(moveset)
     return moveset
 
 if __name__ == "__main__":
