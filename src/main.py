@@ -1,4 +1,4 @@
-from board import Board
+from board import Game
 from parser import (parse_PGN, parse_move)
 from util import WHITE
 import argparse
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     cmd_parser.add_argument("file", nargs='?', default=None, help="specify a PGN file to run")
     args = cmd_parser.parse_args()
     while True:
-        board = Board()
+        board = Game()
         game_loop(board, args.file)
         ans = input("Play Again? ")
         if ans not in ['y', 'Y', 'yes']:

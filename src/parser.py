@@ -1,5 +1,5 @@
 from pieces import Pawn
-from board import Board
+from board import Game
 from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, TRUE_RC, COLUMN_CONVERT, ROW_CONVERT, PIECES,
                   coordinate_to_square, INV_CASTLES)
@@ -12,7 +12,7 @@ def parse_FEN(text: str):
     ep_target = get_ep_target(ep_target)
     halfs = int(halfs)
     fulls = int(fulls)
-    return Board(board, turn, castling, ep_target, halfs, fulls)
+    return Game(board, turn, castling, ep_target, halfs, fulls)
 
 def get_board(text: str) -> ListBoard:
     """Takes in the board segment of the FEN, and returns a ListBoard.
@@ -50,7 +50,7 @@ def get_ep_target(text: str) -> Coordinate | None:
     else:
         return convert_coordinate(text)
 
-def board_to_FEN(board: Board) -> str:
+def board_to_FEN(board: Game) -> str:
     """Reverse parse a board object to a FEN string"""
     ans = get_board_str(board.board)
     ans += " "

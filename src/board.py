@@ -3,9 +3,10 @@ import time
 from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
-                  EMPTY, get_colour, strip_piece, tuple_add, tuple_diff, out_of_bounds)
+                  EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
+                  WHITE_PAWN, BLACK_PAWN, get_delta, interpreter)
 
-class Board():
+class Game():
 
     def __init__(self, board: ListBoard=START_BOARD, turn: int=WHITE,
                  castling: int=ALL, ep_target: Coordinate | None=None,
@@ -71,12 +72,56 @@ class Board():
         """Swap Turns"""
         self.turn = BLACK if self.turn == WHITE else WHITE
 
+    def generate_moves(self, position: Coordinate) -> list[Coordinate]:
+        """generate possible moves for the piece at position."""
+        piece = self.board.get(position)
+        if piece == EMPTY:
+            return []
+
+        if piece == WHITE_PAWN:
+            moves = [tuple_add(position, delta) for delta in [(-1, -1), (0,-1), (0,-2), (1,-1)]]
+        elif piece == BLACK_PAWN:
+            moves = [tuple_add(position, delta) for delta in [(-1, 1), (0,1), (0,2), (1,1)]]
+        elif strip_piece(piece) == KNIGHT:
+            deltas = [-2, -1, 1, 2]
+            moves = [tuple_add(position, (x,y)) for x in deltas
+                                                    for y in deltas
+                                                    if abs(x) != abs(y)]
+        elif strip_piece(piece) in [BISHOP, ROOK, QUEEN]: #sliders
+            bishop_deltas = [(1,1), (1,-1), (-1, 1), (-1,-1)]
+            rook_deltas = [(1,0), (0,1), (-1,0), (0,-1)]
+            if strip_piece(piece) == BISHOP:
+                deltas = bishop_deltas
+            elif strip_piece(piece) == ROOK:
+                deltas = rook_deltas
+            else:
+                deltas = bishop_deltas + rook_deltas
+            moves = []
+            for delta in deltas:
+                move = tuple_add(position, delta)
+                while not out_of_bounds(move):
+                    moves.append(move)
+                    move = tuple_add(move, delta)
+                move = position
+        elif strip_piece(piece) == KING:
+            deltas = [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)]
+            deltas = deltas + [(-2, 0), (2,0)] #castling is a king move
+            moves = [tuple_add(position, delta) for delta in deltas]
+        else:
+            raise ValueError(f"invalid piece: {piece} at position {position}")
+
+        return [move for move in moves if self.valid_move(position, move)]
+
+
     def valid_move(self, pos, new_pos):
         """Return True if there is a piece at pos that can move legally to new_pos
 
         Move order is not considered"""
         piece = self.get_square(pos)
         new_square = self.get_square(new_pos)
+
+        if piece is None or new_square is None: #oob
+            return False
 
         if piece == EMPTY:
             return False
@@ -130,20 +175,20 @@ class Board():
         # 3. Two spaces forward (given it is on the starting square)
         #we check these are first satisfied
         if get_colour(piece) == WHITE:
-            if diff[1] == 1:
-                if diff[0] not in [-1, 0, 1]:
-                    return False
-            elif diff[1] == 2:
-                if pos[1] != 1: #i.e not on starting square
-                    return False
-            else:
-                return False
-        elif get_colour(piece) == BLACK:
             if diff[1] == -1:
                 if diff[0] not in [-1, 0, 1]:
                     return False
             elif diff[1] == -2:
-                if pos[1] != 6:
+                if pos[1] != 6: #i.e not on starting square
+                    return False
+            else:
+                return False
+        elif get_colour(piece) == BLACK:
+            if diff[1] == 1:
+                if diff[0] not in [-1, 0, 1]:
+                    return False
+            elif diff[1] == 2:
+                if pos[1] != 1:
                     return False
             else:
                 return False
@@ -158,16 +203,37 @@ class Board():
             if new_square != EMPTY:
                 return False
             #check inbetween square
-            tmp = tuple_add(pos, delta)
-            while tmp != new_pos:
-                if self.board.get(tmp) != EMPTY:
+            if (abs(diff[1]) == 2):
+                inbetween = -1 if diff[1] == -2 else 1
+                if self.board.get((pos[0], pos[1] + inbetween)) != EMPTY:
                     return False
         if (delta[0] != 0 and new_square != EMPTY):
             return self.is_valid_enpessant(pos, new_pos) 
 
+        return True
+
+    def validate_knight(self, pos, new_pos):
+        diff = tuple_diff(pos, new_pos)
+        return (abs(diff[0]) == 1 and abs(diff[1]) == 2) or (abs(diff[0]) == 2 and abs(diff[1]) == 1)
+
+    def validate_bishop(self, pos, new_pos):
+        delta = get_delta(pos, new_pos)
+        return abs(delta[0]) == 1 and abs(delta[1]) == 1 and self.check_slide(pos, new_pos)
+
+    def validate_rook(self, pos, new_pos):
+        delta = get_delta(pos, new_pos)
+        return (abs(delta[0]) + abs(delta[1]) == 1) and self.check_slide(pos, new_pos)
+
+    def validate_queen(self, pos, new_pos):
+        return self.validate_rook(pos, new_pos) or self.validate_bishop(pos, new_pos)
+
+    def validate_king(self, pos, new_pos):
+        delta = get_delta(pos, new_pos)
+        return delta in [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)] + [(2, 0), (-2, 0)]
+
+
     def is_valid_enpessant(self, pos, new_pos):
         """Return True if we can capture enpessant"""
-        #move diagonally
         delta = get_delta(pos, new_pos)
         piece = self.get_square(pos)
         #piece next to us (opposite colour)
@@ -179,6 +245,7 @@ class Board():
         if self.ep_target != target_position:
             return False
         return True
+
 
     def is_enpessant(self, pos, new_pos):
         """Return True if the move is an enpessant"""
@@ -369,43 +436,17 @@ class Board():
         return True
 
 
-
-                        
-        
-
-
-def get_delta(pos, new_pos):
-    """get a tuple of size 2 representing a single step towards new_pos from pos
-
-    e.g. pos = (2, 2) new_pos = (0,4) ==> delta = (-1, 1)
-
-    """
-    diff = (new_pos[0] - pos[0], new_pos[1] - pos[1])
-    delta_x = 0 if diff[0] == 0 else diff[0] // abs(diff[0])
-    delta_y = 0 if diff[1] == 0 else diff[1] // abs(diff[1]) 
-    return (delta_x, delta_y)
-
-
-    
-def interpreter(text):
-    """Converts text into a tuple of coordinates.
-
-    Args:
-        text (str): two squares on the chess board representing the move
-        e.g. "0103" == A2 to A4
-    """
-    
-    if len(text) != 4:
-        print("text must be of length 4\n")
-        return
-    pos = text[0:2]
-    target = text[2:]
-    squares = []
-    for coord in [pos, target]:
-        col = int(coord[0])
-        row = int(coord[1])
-        squares.append((col, row))
-    return squares
-
-
-   
+if __name__ == "__main__":
+    game = Game()
+    for col in range(8):
+        for row in range(8):
+            pos = (col, row)
+            if game.board.get(pos) == EMPTY:
+                continue
+            print(pos)
+            moves = game.generate_moves(pos)
+            #make into recognisable words
+            start = get_piece_name(game.board.get(pos))
+            pos = coordinate_to_square(pos)
+            moves = [coordinate_to_square(p) for p in moves]
+            print(f"piece {start} at square {pos} can move to {moves}")

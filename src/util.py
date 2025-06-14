@@ -57,6 +57,9 @@ TRUE_RC = [i for i in range(8)]
 COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_RC))
 ROW_CONVERT = dict(zip(ROWS, TRUE_RC))
 
+def get_piece_name(piece: Piece):
+    return INV_PIECES[piece]
+
 def coordinate_to_square(c: Coordinate) -> str:
     col, row = c
     ans = ""
@@ -109,6 +112,42 @@ def remove_oob(moves):
     takes a list of moves and removes any out of bounds moves
     """
     return list(filter(filter_oob, moves))
+
+def get_delta(pos, new_pos):
+    """get a tuple of size 2 representing a single step towards new_pos from pos
+
+    e.g. pos = (2, 2) new_pos = (0,4) ==> delta = (-1, 1)
+
+    """
+    diff = (new_pos[0] - pos[0], new_pos[1] - pos[1])
+    delta_x = 0 if diff[0] == 0 else diff[0] // abs(diff[0])
+    delta_y = 0 if diff[1] == 0 else diff[1] // abs(diff[1]) 
+    return (delta_x, delta_y)
+
+
+    
+def interpreter(text):
+    """Converts text into a tuple of coordinates.
+
+    Args:
+        text (str): two squares on the chess board representing the move
+        e.g. "0103" == A2 to A4
+    """
+    
+    if len(text) != 4:
+        print("text must be of length 4\n")
+        return
+    pos = text[0:2]
+    target = text[2:]
+    squares = []
+    for coord in [pos, target]:
+        col = int(coord[0])
+        row = int(coord[1])
+        squares.append((col, row))
+    return squares
+
+
+   
 
 class ListBoard():
     """Simple data structure to simulate 2D array functionality w/ a 1D array"""
