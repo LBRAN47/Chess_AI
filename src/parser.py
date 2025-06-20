@@ -306,9 +306,10 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
         for col in range(8):
             col = start_col if start_col is not None else col
             square = board.get_square((col, row))
-            if square is None:
+            if square == EMPTY:
                 continue
-            if str(square) == piece_str and board.can_move_piece((col, row), target_coords):
+            if (strip_piece(PIECES[piece_str]) == strip_piece(square)
+            and board.can_move_piece((col, row), target_coords)):
                 if moveset is not None:
                     print("Insufficient disambiguation")
                     return

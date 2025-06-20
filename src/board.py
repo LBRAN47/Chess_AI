@@ -213,7 +213,7 @@ class Game():
                 inbetween = -1 if diff[1] == -2 else 1
                 if self.board.get((pos[0], pos[1] + inbetween)) != EMPTY:
                     return False
-        if (delta[0] != 0 and new_square != EMPTY):
+        if (delta[0] != 0 and new_square == EMPTY):
             return self.is_valid_enpessant(pos, new_pos) 
 
         return True
@@ -257,19 +257,19 @@ class Game():
         """Return True if the move is an enpessant"""
         piece = self.get_square(pos)
         delta = get_delta(pos, new_pos)
-        return isinstance(piece, Pawn) and abs(delta[0]) == 1 and self.get_square(new_pos) is None
+        return strip_piece(piece) == PAWN and abs(delta[0]) == 1 and self.get_square(new_pos) == EMPTY
         
     def is_castle(self, pos, new_pos):
         """Return True if the move is a castle"""
         piece = self.get_square(pos)
-        return (isinstance(piece, King) and not piece.has_moved
+        return (strip_piece(piece) == KING and not piece.has_moved
         and (new_pos[0] - pos[0], new_pos[1] - pos[1]) in [(2,0), (-2,0)])
 
     def king_castle_valid(self, king, pos, new_pos):
         """Return True if this king can move from pos to new_pos, in a way that
         satisfies the rules of castling."""
         return (not self.in_check(king.colour)
-                and self.get_square(new_pos) is None
+                and self.get_square(new_pos) == EMPTY
                 and self.valid_move(pos, new_pos))
 
     def is_valid_castle(self, king, pos, new_pos):
@@ -279,7 +279,7 @@ class Game():
 
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
         rook = self.get_square(rook_pos)
-        if rook is None or rook.has_moved or rook.colour != king.colour:
+        if rook == EMPTY or rook.has_moved or rook.colour != king.colour:
             return False
         while pos != new_pos:
             target = tuple_add(pos, delta)
@@ -405,9 +405,17 @@ class Game():
             op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
             self.replace_square(op_position, EMPTY)
 
+        if self.is_double_pawn_move(pos, new_pos):
+            self.ep_target = new_pos
+        else:
+            self.ep_target = None
+
         self.change_piece_position(pos, new_pos, promotion)
-        self.ep_target = new_pos
         self.change_turn()
+
+    def is_double_pawn_move(self, pos, new_pos):
+        """Return true if this is a pawn moving two squares"""
+        return strip_piece(self.get_square(pos)) == PAWN and abs(pos[1] - new_pos[1]) == 2
 
     def get_promotion_piece(self, piece, promotion):
         """Return a new piece of type promotion w/ piece's attributes

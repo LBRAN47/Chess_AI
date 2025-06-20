@@ -11,9 +11,8 @@ def game_loop(board, file=None):
         #print(f"\n{parser.headers['White']} vs. {parser.headers['Black']}\n")
         print("Press ENTER to show next move")
     while True:
-            print(board.show_board())
+            print(board)
             if file is None:
-                print(f"Turn: {'WHITE' if board.turn == WHITE else 'BLACK'}")
                 move = input("Make a move: ")
             else:
                 if len(moves) == 0:
