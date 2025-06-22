@@ -2,7 +2,7 @@ from pieces import Pawn
 from board import Game
 from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
-                  coordinate_to_square, INV_CASTLES, strip_piece)
+                  coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
 
 def parse_FEN(text: str):
     board, turn, castling, ep_target, halfs, fulls = text.split()
@@ -206,6 +206,8 @@ def parse_move(move, board):
             print("invalid length notation")
             return
         target_coords = convert_coordinate(move[:2])
+        if target_coords is None:
+            print("target square is invalid")
         move = move[2:]
         if len(move) == 0:
             return get_moveset(piece_str, target_coords, board, start_coords)
@@ -239,6 +241,8 @@ def parse_pawn(move, board):
             print(f"invalid notation {move}")
             return
         ending_square = convert_coordinate(move[2:4])
+        if ending_square is None:
+            print("ending square is invalid")
         candidate_squares = [(start_col, ending_square[1]+1), (start_col, ending_square[1]-1)]
         for coord in candidate_squares:
             if board.can_move_piece(coord, ending_square):
@@ -257,7 +261,7 @@ def parse_pawn(move, board):
             return
         for i in [-2, -1, 1, 2]:
             coord = (start_col, ending_square[1]+i)
-            if not strip_piece(board.get_square(coord)) == PAWN:
+            if out_of_bounds(coord) or not strip_piece(board.get_square(coord)) == PAWN:
                 continue
             if board.can_move_piece(coord, ending_square):
                 ans = (coord, ending_square, None)
