@@ -49,6 +49,8 @@ CASTLES = {'K': WHITE_K_CASTLE, "Q": WHITE_Q_CASTLE,
            'k': BLACK_K_CASTLE, "q": BLACK_Q_CASTLE}
 INV_CASTLES = {value: key for key, value in CASTLES.items()}
 ALL = WHITE_K_CASTLE | WHITE_Q_CASTLE | BLACK_K_CASTLE | BLACK_Q_CASTLE
+WHITE_KING_START = (4,7)
+BLACK_KING_START = (4,0)
 
 PIECENAMES  = ['B', 'N', 'R', 'Q', 'K']
 COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']

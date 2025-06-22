@@ -4,7 +4,7 @@ from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, 
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
-                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, interpreter)
+                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, WHITE_KING_START, BLACK_KING_START)
 
 class Game():
 
@@ -14,6 +14,10 @@ class Game():
         self.board = board
         self.turn = turn
         self.castling = castling
+        #1st bit (MSB): set if white can Kingside castle
+        #2nd bit: set if white can Queenside castle
+        #3rd bit: set if black can Kingside castle
+        #4th bit: set if black can Queenside castle
         self.ep_target = ep_target
         self.halfs = halfs
         self.fulls = fulls
@@ -23,6 +27,7 @@ class Game():
                     self.white_king_pos = (col, row)
                 elif self.get_square((col, row)) == BLACK_KING:
                     self.black_king_pos = (col, row)
+
 
     def show_board(self):
         ans = ""
@@ -77,6 +82,49 @@ class Game():
     def change_turn(self):
         """Swap Turns"""
         self.turn = BLACK if self.turn == WHITE else WHITE
+
+    def right_to_castle(self, pos, new_pos):
+        """checks if we have the right to peform the particular castling move"""
+        piece = self.get_square(pos)
+        if not ((piece == WHITE_KING and pos == WHITE_KING_START) or
+                (piece == BLACK_KING and pos == BLACK_KING_START)):
+            return False
+        diff = tuple_diff(pos, new_pos)
+        if diff == (2,0):
+            castle = WHITE_K_CASTLE if get_colour(piece) == WHITE else BLACK_K_CASTLE
+        elif diff == (-2,0):
+            castle = WHITE_Q_CASTLE if get_colour(piece) == WHITE else BLACK_Q_CASTLE
+        else:
+            return False
+        return self.castling & castle
+
+    def update_castle_rights(self, pos, new_pos):
+        """Based on the move update the castling rights"""
+        piece = self.get_square(pos)
+        if strip_piece(piece) == ROOK:
+            if get_colour(piece) == WHITE:
+                if pos == (7,7):
+                    castle = WHITE_K_CASTLE
+                elif pos == (0,7):
+                    castle = WHITE_Q_CASTLE
+                else:
+                    return
+            elif get_colour(piece) == BLACK:
+                if pos == (0,0):
+                    castle = BLACK_Q_CASTLE
+                elif pos == (7,0):
+                    castle = BLACK_K_CASTLE
+                else:
+                    return
+            self.castling &= (15 - castle)
+        elif strip_piece(piece) == KING:
+            if get_colour(piece) == WHITE:
+                self.castling &= BLACK_K_CASTLE | BLACK_Q_CASTLE
+            elif get_colour(piece) == BLACK:
+                self.castling &= WHITE_K_CASTLE | WHITE_Q_CASTLE
+            
+
+
 
     def generate_moves(self, position: Coordinate) -> list[Coordinate]:
         """generate possible moves for the piece at position."""
@@ -234,7 +282,7 @@ class Game():
         return self.validate_rook(pos, new_pos) or self.validate_bishop(pos, new_pos)
 
     def validate_king(self, pos, new_pos):
-        delta = get_delta(pos, new_pos)
+        delta = tuple_diff(pos, new_pos)
         return delta in [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)] + [(2, 0), (-2, 0)]
 
 
@@ -262,13 +310,13 @@ class Game():
     def is_castle(self, pos, new_pos):
         """Return True if the move is a castle"""
         piece = self.get_square(pos)
-        return (strip_piece(piece) == KING and not piece.has_moved
-        and (new_pos[0] - pos[0], new_pos[1] - pos[1]) in [(2,0), (-2,0)])
+        return (strip_piece(piece) == KING and self.right_to_castle(pos, new_pos)
+        and tuple_diff(pos, new_pos) in [(2,0), (-2,0)])
 
     def king_castle_valid(self, king, pos, new_pos):
         """Return True if this king can move from pos to new_pos, in a way that
         satisfies the rules of castling."""
-        return (not self.in_check(king.colour)
+        return (not self.in_check(get_colour(king))
                 and self.get_square(new_pos) == EMPTY
                 and self.valid_move(pos, new_pos))
 
@@ -279,7 +327,7 @@ class Game():
 
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
         rook = self.get_square(rook_pos)
-        if rook == EMPTY or rook.has_moved or rook.colour != king.colour:
+        if rook == EMPTY or get_colour(rook) != get_colour(king):
             return False
         while pos != new_pos:
             target = tuple_add(pos, delta)
@@ -289,7 +337,7 @@ class Game():
             self.change_piece_position(pos, target)
             pos = target
 
-        if self.in_check(king.colour):
+        if self.in_check(get_colour(king)):
             self.backtrack(king, og_pos, pos, None)
             return False
 
@@ -310,42 +358,47 @@ class Game():
                     continue
                 if get_colour(piece) != player:
                     if self.valid_move((collumn, row), king_pos):
+                        print(f"the checking move is coming from {(collumn, row)} attacking {king_pos}")
                         return True
         return False
 
     def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
-        return self.valid_move(pos, new_pos) and self.turn == get_colour(self.get_square(pos))
+        if not (self.valid_move(pos, new_pos) and self.turn == get_colour(self.get_square(pos))):
+            return False
 
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
         
-        if not self.valid_move(pos, new_pos):
-            return False
-
-        if piece.colour != self.turn:
-            return False
-
-
         if self.is_castle(pos, new_pos):
             return self.is_valid_castle(piece, pos, new_pos)
+
 
         if self.is_enpessant(pos, new_pos):
             #remove the piece we are capturing!!
             op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
             op_piece = self.get_square(op_position)
-            self.replace_square(op_position, None)
+            self.replace_square(op_position, EMPTY)
 
         #Move the piece
         self.change_piece_position(pos, new_pos)
 
+        print()
+        print("THE BOARD IF THE MOVE WAS PLAYED")
+        print(self.board.board)
+        print(self)
+        print()
+
+
         if self.in_check(self.turn):
+            print("in check after this!!!")
             #backtrack
             self.backtrack(piece, pos, new_pos, dest)
             if self.is_enpessant(pos, new_pos):
             #put the captured piece back
                 self.replace_square(op_position, op_piece)
             return False
+        print("not in check: returning to old board")
         
         self.backtrack(piece, pos, new_pos, dest)
 
@@ -362,14 +415,13 @@ class Game():
         1. Move piece back to pos
         2. Move dest back to new_pos
         3. Reset king_position"""
-        piece.position = pos
         self.replace_square(pos, piece)
         self.replace_square(new_pos, dest)
-        if isinstance(piece, King):
-            if piece.colour == WHITE:
-                self.white_king_pos = piece.position
+        if strip_piece(piece) == KING:
+            if get_colour(piece) == WHITE:
+                self.white_king_pos = pos
             else:
-                self.black_king_pos = piece.position
+                self.black_king_pos = pos
 
 
     def change_piece_position(self, pos, new_pos, promotion=None):
@@ -381,9 +433,9 @@ class Game():
             piece = self.get_promotion_piece(piece, promotion)
         self.replace_square(new_pos, piece)
         if piece == WHITE_KING:
-            self.white_king_pos = piece.position
+            self.white_king_pos = new_pos
         elif piece == BLACK_KING:
-            self.black_king_pos = piece.position
+            self.black_king_pos = new_pos
 
 
     def move_piece(self, moveset):
@@ -392,13 +444,13 @@ class Game():
         pos, new_pos, promotion = moveset
 
         if not self.can_move_piece(pos, new_pos):
+            print("cannot move piece")
             return
         
         if self.is_castle(pos, new_pos):
             cur_rook = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
             target_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
             self.change_piece_position(cur_rook, target_rook)
-            self.get_square(target_rook).move_piece(target_rook)
 
         if self.is_enpessant(pos, new_pos):
             #capture the piece
@@ -409,6 +461,9 @@ class Game():
             self.ep_target = new_pos
         else:
             self.ep_target = None
+
+        if strip_piece(self.get_square(pos)) in [KING, ROOK]:
+            self.update_castle_rights(pos, new_pos)
 
         self.change_piece_position(pos, new_pos, promotion)
         self.change_turn()

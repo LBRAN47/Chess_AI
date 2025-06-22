@@ -216,7 +216,7 @@ def parse_move(move, board):
 
 def parse_castle(move, board):
     """Return the castling moveset represented by move"""
-    row = 7 if board.turn == "WHITE" else 0
+    row = 7 if board.turn == WHITE else 0
     if move in ['0-0', 'O-O']: #short castle
         return ((4,row), (6,row), None)
     elif move in ['0-0-0', 'O-O-O']: #long castle
@@ -245,6 +245,7 @@ def parse_pawn(move, board):
                 ans = (coord, ending_square, None)
                 break
         if ans is None:
+            print(f"no valid move {move}")
             return
         if len(move) == 4:
             return ans
@@ -252,6 +253,7 @@ def parse_pawn(move, board):
     else:
         ending_square = convert_coordinate(move[0:2])
         if ending_square is None:
+            print(f"invaid move syntax: {move}")
             return
         for i in [-2, -1, 1, 2]:
             coord = (start_col, ending_square[1]+i)
@@ -260,6 +262,7 @@ def parse_pawn(move, board):
             if board.can_move_piece(coord, ending_square):
                 ans = (coord, ending_square, None)
         if ans is None:
+            print(f"no valid move {move}")
             return
         if len(move) == 2:
             return ans
@@ -320,7 +323,6 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
             break
     if moveset is None:
         print(f"no piece {piece_str} able to move to {target_coords}\n Based on starting square: {start_coords}")
-    print(moveset)
     return moveset
 
 if __name__ == "__main__":
