@@ -4,7 +4,8 @@ from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, 
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
-                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, WHITE_KING_START, BLACK_KING_START)
+                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, WHITE_KING_START, BLACK_KING_START,
+                  make_bit_board, print_bit_board,  check_bit_board, set_bit_board)
 
 class Game():
 
@@ -27,6 +28,10 @@ class Game():
                     self.white_king_pos = (col, row)
                 elif self.get_square((col, row)) == BLACK_KING:
                     self.black_king_pos = (col, row)
+
+        self.squares_attacked = make_bit_board(self.generate_all_attacking_moves())
+        print_bit_board(self.squares_attacked)
+
 
 
     def show_board(self):
@@ -124,7 +129,39 @@ class Game():
                 self.castling &= WHITE_K_CASTLE | WHITE_Q_CASTLE
             
 
+    def generate_all_attacking_moves(self) -> set[Coordinate]:
+        """generates every possible move in the board at this state"""
+        ans = set()
+        for col in range(8):
+            for row in range(8):
+                ans.update(self.generate_attacking_moves((col, row)))
+        return ans
 
+    def generate_all_moves(self) -> set[tuple[Coordinate, Coordinate]]:
+        """generates every possible move in the board at this state"""
+        ans = set()
+        for col in range(8):
+            for row in range(8):
+                pos = (col, row)
+                for move in self.generate_moves(pos):
+                    ans.add((pos, move))
+        return ans
+
+    def generate_attacking_moves(self, position: Coordinate) -> list[Coordinate]:
+        """generate all possible ATTACKING moves"""
+        piece = self.board.get(position)
+        if get_colour(piece) == self.turn:
+            return []
+        if piece == EMPTY:
+            return []
+        if piece == WHITE_PAWN:
+            return [tuple_add(position, delta) for delta in [(-1, -1), (1,-1)]
+                    if self.valid_move(position, tuple_add(position, delta))]
+        elif piece == BLACK_PAWN:
+            return [tuple_add(position, delta) for delta in [(-1, 1), (1,1)]
+                    if self.valid_move(position, tuple_add(position, delta))]
+        else:
+            return self.generate_moves(position)
 
     def generate_moves(self, position: Coordinate) -> list[Coordinate]:
         """generate possible moves for the piece at position."""
@@ -351,6 +388,7 @@ class Game():
         Where player is either 'WHITE' or 'BLACK' """
 
         king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
+        return check_bit_board(self.squares_attacked, king_pos)
         for row in range(8):
             for collumn in range(8):
                 piece = self.get_square((collumn, row))
@@ -362,6 +400,40 @@ class Game():
                         return True
         return False
 
+    def generate_blockable_squares(self, target: Coordinate):
+        """return the bitboard representing the squares that can
+        be visited to BLOCK a check. If None is returned, there is a double
+        check, meaning no block is possible"""
+        target_colour = get_colour(self.get_square(target))
+        color = BLACK if target_colour == WHITE else WHITE
+        piece_coords = None
+        for row in range(8):
+            for col in range(8):
+                pos = (col, row)
+                if color != get_colour(self.get_square(pos)):
+                    continue
+                if self.valid_move(pos, target):
+                    if piece_coords is None:
+                        piece_coords = pos
+                    else:
+                        return None
+        if piece_coords is None:
+            return 0 #empty bit_board
+        piece = self.get_square(piece_coords)
+        bb = 0
+        if strip_piece(piece) == KNIGHT or strip_piece(piece) == PAWN:
+            return set_bit_board(bb, piece_coords)
+        if strip_piece(piece) in [QUEEN, BISHOP, ROOK]:
+            delta = get_delta(piece_coords, target)
+            while piece_coords != target:
+                bb = set_bit_board(bb, piece_coords)
+                piece_coords = tuple_add(piece_coords, delta)
+            return bb
+
+
+
+
+
     def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
         if not (self.valid_move(pos, new_pos) and self.turn == get_colour(self.get_square(pos))):
@@ -369,6 +441,23 @@ class Game():
 
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
+
+        if self.in_check(self.turn):
+            #option 1: move the king out of the way of attack
+            if strip_piece(piece) == KING:
+                if tuple_diff(pos, new_pos) in [(2,0), (-2,0)]: #cannot castle out of check
+                    return False
+                if not check_bit_board(self.squares_attacked, new_pos):
+                    return True
+                return False
+            #option 2: block the attacking piece with one of our own
+            king_pos = self.white_king_pos if self.turn == WHITE else self.black_king_pos
+            bb_blockables = self.generate_blockable_squares(king_pos)
+            if bb_blockables is None:
+                return False
+            if check_bit_board(bb_blockables, new_pos):
+                return True
+            return False
         
         if self.is_castle(pos, new_pos):
             return self.is_valid_castle(piece, pos, new_pos)
@@ -379,32 +468,6 @@ class Game():
             op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
             op_piece = self.get_square(op_position)
             self.replace_square(op_position, EMPTY)
-
-        #Move the piece
-        self.change_piece_position(pos, new_pos)
-
-        print()
-        print("THE BOARD IF THE MOVE WAS PLAYED")
-        print(self.board.board)
-        print(self)
-        print()
-
-
-        if self.in_check(self.turn):
-            print("in check after this!!!")
-            #backtrack
-            self.backtrack(piece, pos, new_pos, dest)
-            if self.is_enpessant(pos, new_pos):
-            #put the captured piece back
-                self.replace_square(op_position, op_piece)
-            return False
-        print("not in check: returning to old board")
-        
-        self.backtrack(piece, pos, new_pos, dest)
-
-        if self.is_enpessant(pos, new_pos):
-            #put the captured piece back
-            self.replace_square(op_position, op_piece)
 
         return True
 
@@ -444,7 +507,6 @@ class Game():
         pos, new_pos, promotion = moveset
 
         if not self.can_move_piece(pos, new_pos):
-            print("cannot move piece")
             return
         
         if self.is_castle(pos, new_pos):
@@ -467,6 +529,10 @@ class Game():
 
         self.change_piece_position(pos, new_pos, promotion)
         self.change_turn()
+        print(self.generate_all_attacking_moves())
+        self.squares_attacked = make_bit_board(self.generate_all_attacking_moves())
+        print_bit_board(self.squares_attacked)
+    
 
     def is_double_pawn_move(self, pos, new_pos):
         """Return true if this is a pawn moving two squares"""
@@ -485,20 +551,10 @@ class Game():
     
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
-        if not self.in_check(player):
-            return False
-        
-        for row in range(8):
-            for collumn in range(8):
-                piece = self.get_square((collumn, row))
-                if piece == EMPTY or piece is None:
-                    continue
-                pos = (collumn, row)
-                if get_colour(piece) == player:
-                    moves = self.generate_moves(pos)
-                    for move in moves:
-                        if self.can_move_piece(pos, move):
-                            return False
+        for pos, target in self.generate_all_moves():
+           if get_colour(self.get_square(pos)) == player and self.can_move_piece(pos, target) and not self.is_castle(pos, target):
+                print(f"saving us from checkmate: {pos} to {target}")
+                return False
         return True
 
 

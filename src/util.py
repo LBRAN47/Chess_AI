@@ -155,7 +155,7 @@ def interpreter(text):
 class ListBoard():
     """Simple data structure to simulate 2D array functionality w/ a 1D array"""
 
-    def __init__(self, board_list: list[Piece], rows:int | None=None):
+    def __init__(self, board_list: list[Piece]=[0]*64, rows:int | None=None):
         self.board = board_list
         self.length = len(board_list)
         self.rows = rows if rows is not None else int(math.sqrt(self.length))
@@ -191,5 +191,31 @@ class ListBoard():
 
 START_BOARD = ListBoard(START_BOARD)
 
+def make_bit_board(squares: set[Coordinate]) -> int:
+    bb = 0
+    for square in squares:
+        bb = set_bit_board(bb, square)
+    return bb
+
+def set_bit_board(board: int, coords: Coordinate):
+    col, row = coords
+    true_coord = 8*row + col 
+    board = board | (1 << true_coord)
+    return board
+
+
+def check_bit_board(board: int, coords: Coordinate) -> bool:
+    return board & (1 << (8*coords[1] + coords[0]))
+
+def print_bit_board(bb: int):
+    row = ""
+    for val in range(64):
+        if bb & (1 << val):
+            row += "1 "
+        else:
+            row += "0 "
+        if val % 8 == 7:
+            print(row)
+            row = ""
 
 

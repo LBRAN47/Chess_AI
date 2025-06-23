@@ -16,7 +16,11 @@ def game_loop(board, file=None):
                 move = input("Make a move: ")
             else:
                 if len(moves) == 0:
-                    print("\nGame Over! The Game ends in a Draw")
+                    if board.in_checkmate(board.turn):
+                        board.change_turn()
+                        print(f"CHECKMATE. {board.turn} wins")
+                    else:
+                        print("\nGame Over! The Game ends in a Draw")
                     break
                 move = moves.pop(0)
                 print(move)
