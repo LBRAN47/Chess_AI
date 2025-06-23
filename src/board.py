@@ -35,6 +35,10 @@ class Game():
         print_bit_board(self.squares_attacked)
 
 
+    def generate_all_possible_moves(self):
+        """generates a list of all moves that are strictly legal"""
+        return [(pos, new_pos, prom) for (pos, new_pos, prom) in self.generate_all_moves() if self.can_move_piece(pos, new_pos)]
+
 
     def show_board(self):
         ans = ""
@@ -44,6 +48,8 @@ class Game():
                 square = self.board.get(col, row)
                 if square == EMPTY:
                     row_string += " "
+                elif square is None:
+                    row_string += "X"
                 else:
                     row_string += INV_PIECES[square]
                 row_string += "|"
@@ -139,22 +145,30 @@ class Game():
                 ans.update(self.generate_attacking_moves((col, row)))
         return ans
 
-    def generate_all_moves(self) -> set[tuple[Coordinate, Coordinate]]:
+    def generate_all_moves(self) -> set[tuple[Coordinate, Coordinate, int|None]]:
         """generates every possible move in the board at this state"""
         ans = set()
         for col in range(8):
             for row in range(8):
                 pos = (col, row)
-                for move in self.generate_valid_moves(pos):
-                    ans.add((pos, move))
+                piece = self.get_square(pos)
+                for move in self.generate_moves(pos):
+                    if (piece == BLACK_PAWN and move[1] == 0):
+                        for prom_piece in [BISHOP | BLACK, KNIGHT | BLACK, ROOK | BLACK, QUEEN | BLACK]:
+                            ans.add((pos, move, prom_piece))
+                    elif (piece == WHITE_PAWN and move[1] == 7):
+                        for prom_piece in [BISHOP | WHITE, KNIGHT | WHITE, ROOK | WHITE, QUEEN | WHITE]:
+                            ans.add((pos, move, prom_piece))
+                    else:
+                        ans.add((pos, move, None))
         return ans
 
     def generate_attacking_moves(self, position: Coordinate) -> list[Coordinate]:
         """generate all possible ATTACKING moves"""
         piece = self.board.get(position)
-        if get_colour(piece) == self.turn:
+        if piece == EMPTY or piece is None:
             return []
-        if piece == EMPTY:
+        if get_colour(piece) == self.turn:
             return []
         if piece == WHITE_PAWN:
             return [tuple_add(position, delta) for delta in [(-1, -1), (1,-1)]
@@ -176,7 +190,10 @@ class Game():
                 move = tuple_add(position, delta)
                 while not out_of_bounds(move):
                     square = self.get_square(move)
+                    if square is None:
+                        break
                     if square != EMPTY:
+                        print(square)
                         moves.append(move)
                         if not (strip_piece(square) == KING and get_colour(square) != get_colour(piece)):
                             break
@@ -434,16 +451,6 @@ class Game():
 
         king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
         return check_bit_board(self.squares_attacked, king_pos)
-        for row in range(8):
-            for collumn in range(8):
-                piece = self.get_square((collumn, row))
-                if piece == EMPTY or piece is None:
-                    continue
-                if get_colour(piece) != player:
-                    if self.valid_move((collumn, row), king_pos):
-                        print(f"the checking move is coming from {(collumn, row)} attacking {king_pos}")
-                        return True
-        return False
 
     def generate_blockable_squares(self, target: Coordinate):
         """return the bitboard representing the squares that can
@@ -556,6 +563,10 @@ class Game():
         """if we can move, perform the moveset, updating the game state accordingly"""
 
         pos, new_pos, promotion = moveset
+        #save these for undoing a move later
+        dest = self.get_square(new_pos)
+        old_ep = self.ep_target
+        old_cr = self.castling
 
         if not self.can_move_piece(pos, new_pos):
             return
@@ -580,10 +591,43 @@ class Game():
 
         self.change_piece_position(pos, new_pos, promotion)
         self.change_turn()
-        print(self.generate_all_attacking_moves())
+        #print(self.generate_all_attacking_moves())
         self.squares_attacked = make_bit_board(self.generate_all_attacking_moves())
-        print_bit_board(self.squares_attacked)
-    
+        #print_bit_board(self.squares_attacked)
+        return dest, old_ep, old_cr 
+
+    def unmove_piece(self, moveset, old_new_pos, old_ep, old_cr):
+        """reverse the most recent move"""
+        pos, new_pos, promotion = moveset
+        piece = self.get_square(new_pos)
+
+
+        if strip_piece(piece) == KING and tuple_diff(pos, new_pos) in [(2,0), (-2,0)]:
+            cur_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
+            old_rook = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
+            self.replace_square(old_rook, self.get_square(cur_rook))
+            self.replace_square(cur_rook, EMPTY)
+
+        if self.is_enpessant(pos, new_pos):
+            op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
+            self.replace_square(op_position, old_new_pos)
+            self.change_piece_position(new_pos, pos)
+
+        self.ep_target = old_ep
+        self.castling = old_cr
+
+        if promotion is not None:
+            colour = get_colour(piece)
+            self.replace_square(pos, PAWN | colour)
+        else:
+            self.change_piece_position(new_pos, pos)
+        self.replace_square(new_pos, old_new_pos)
+        if piece == BLACK_KING:
+            self.black_king_pos = pos
+        if piece == WHITE_KING:
+            self.white_king_pos = pos
+        self.change_turn()
+        self.squares_attacked = make_bit_board(self.generate_all_attacking_moves())
 
     def is_double_pawn_move(self, pos, new_pos):
         """Return true if this is a pawn moving two squares"""
@@ -601,23 +645,35 @@ class Game():
     
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
-        for pos, target in self.generate_all_moves():
+        for pos, target, _ in self.generate_all_moves():
            if get_colour(self.get_square(pos)) == player and self.can_move_piece(pos, target) and not self.is_castle(pos, target):
                 return False
         return True
 
+    def perft(self, depth):
+
+        if depth == 0:
+            return 1
+
+        moves = self.generate_all_possible_moves()
+
+        num_moves = 0
+        for move in moves:
+            dest, old_ep, old_cr = self.move_piece(move)
+            print(self)
+            self.perft(depth-1)
+            self.unmove_piece(move, dest, old_ep, old_cr)
+
+        return num_moves
+
+
+
+
+        
+
 
 if __name__ == "__main__":
     game = Game()
-    for col in range(8):
-        for row in range(8):
-            pos = (col, row)
-            if game.board.get(pos) == EMPTY:
-                continue
-            print(pos)
-            moves = game.generate_valid_moves(pos)
-            #make into recognisable words
-            start = get_piece_name(game.board.get(pos))
-            pos = coordinate_to_square(pos)
-            moves = [coordinate_to_square(p) for p in moves]
-            print(f"piece {start} at square {pos} can move to {moves}")
+    for i in range(4):
+        print(game.perft(i))
+

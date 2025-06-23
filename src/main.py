@@ -28,6 +28,11 @@ def game_loop(board, file=None):
 
             moveset = parse_move(move, board)
             if moveset is not None:
+                np, old_ep, old_cr = board.move_piece(moveset)
+                print(board)
+                board.unmove_piece(moveset, np, old_ep, old_cr)
+                print("\nundo...")
+                print(board)
                 board.move_piece(moveset)
                 if board.in_checkmate(board.turn):
                     board.change_turn()
