@@ -5,7 +5,9 @@ from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, 
                   Coordinate, ListBoard, Piece, ALL, coordinate_to_square, INV_PIECES,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
                   WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, WHITE_KING_START, BLACK_KING_START,
-                  make_bit_board, print_bit_board,  check_bit_board, set_bit_board)
+                  make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES)
+
+
 
 class Game():
 
@@ -143,7 +145,7 @@ class Game():
         for col in range(8):
             for row in range(8):
                 pos = (col, row)
-                for move in self.generate_moves(pos):
+                for move in self.generate_valid_moves(pos):
                     ans.add((pos, move))
         return ans
 
@@ -160,26 +162,8 @@ class Game():
         elif piece == BLACK_PAWN:
             return [tuple_add(position, delta) for delta in [(-1, 1), (1,1)]
                     if self.valid_move(position, tuple_add(position, delta))]
-        else:
-            return self.generate_moves(position)
-
-    def generate_moves(self, position: Coordinate) -> list[Coordinate]:
-        """generate possible moves for the piece at position."""
-        piece = self.board.get(position)
-        if piece == EMPTY:
-            return []
-
-        if piece == WHITE_PAWN:
-            moves = [tuple_add(position, delta) for delta in [(-1, -1), (0,-1), (0,-2), (1,-1)]]
-        elif piece == BLACK_PAWN:
-            moves = [tuple_add(position, delta) for delta in [(-1, 1), (0,1), (0,2), (1,1)]]
-        elif strip_piece(piece) == KNIGHT:
-            deltas = [-2, -1, 1, 2]
-            moves = [tuple_add(position, (x,y)) for x in deltas
-                                                    for y in deltas
-                                                    if abs(x) != abs(y)]
-        elif strip_piece(piece) in [BISHOP, ROOK, QUEEN]: #sliders
-            bishop_deltas = [(1,1), (1,-1), (-1, 1), (-1,-1)]
+        elif strip_piece(piece) in [BISHOP, ROOK, QUEEN]:
+            bishop_deltas =  [(1,1), (1,-1), (-1, 1), (-1,-1)]
             rook_deltas = [(1,0), (0,1), (-1,0), (0,-1)]
             if strip_piece(piece) == BISHOP:
                 deltas = bishop_deltas
@@ -191,18 +175,82 @@ class Game():
             for delta in deltas:
                 move = tuple_add(position, delta)
                 while not out_of_bounds(move):
+                    square = self.get_square(move)
+                    if square != EMPTY:
+                        moves.append(move)
+                        if not (strip_piece(square) == KING and get_colour(square) != get_colour(piece)):
+                            break
                     moves.append(move)
                     move = tuple_add(move, delta)
                 move = position
+            return moves
+        else:
+            return self.generate_valid_moves(position)
+
+    def white_pawn_deltas(self, position: Coordinate):
+        return [tuple_add(position, delta) for delta in [(-1, -1), (0,-1), (0,-2), (1,-1)]]
+
+    def black_pawn_deltas(self, position: Coordinate):
+        return [tuple_add(position, delta) for delta in [(-1, 1), (0,1), (0,2), (1,1)]]
+
+    def knight_deltas(self, position: Coordinate):
+        deltas = [-2, -1, 1, 2]
+        return [tuple_add(position, (x,y)) for x in deltas
+                                                for y in deltas
+                                                if abs(x) != abs(y)]
+    def bishop_deltas(self, position: Coordinate):
+        deltas =  [(1,1), (1,-1), (-1, 1), (-1,-1)]
+        return self.get_sliding_deltas(position, deltas)
+
+    def rook_deltas(self, position: Coordinate):
+        deltas = [(1,0), (0,1), (-1,0), (0,-1)]
+        return self.get_sliding_deltas(position, deltas)
+
+    def get_sliding_deltas(self, position: Coordinate, deltas: list[Coordinate]):
+        moves = []
+        for delta in deltas:
+            move = tuple_add(position, delta)
+            while not out_of_bounds(move):
+                if self.get_square(move) != EMPTY:
+                    moves.append(move)
+                    break
+                moves.append(move)
+                move = tuple_add(move, delta)
+            move = position
+        return moves
+
+    def king_deltas(self, position):
+        deltas = [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)]
+        deltas = deltas + [(-2, 0), (2,0)] #castling is a king move
+        return [tuple_add(position, delta) for delta in deltas]
+
+    def generate_moves(self, position: Coordinate) -> list[Coordinate]:
+        """generate possible moves for the piece at position."""
+        piece = self.board.get(position)
+        if piece == EMPTY:
+            return []
+
+        if piece == WHITE_PAWN:
+            return self.white_pawn_deltas(position)
+        elif piece == BLACK_PAWN:
+            return self.black_pawn_deltas(position)
+        elif strip_piece(piece) == KNIGHT:
+            return  self.knight_deltas(position)
+        elif strip_piece(piece) == BISHOP:
+            return self.bishop_deltas(position)
+        elif strip_piece(piece) == ROOK:
+            return self.rook_deltas(position)
+        elif strip_piece(piece) == QUEEN:
+            return self.bishop_deltas(position) + self.rook_deltas(position)
         elif strip_piece(piece) == KING:
-            deltas = [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)]
-            deltas = deltas + [(-2, 0), (2,0)] #castling is a king move
-            moves = [tuple_add(position, delta) for delta in deltas]
+            return self.king_deltas(position)
         else:
             raise ValueError(f"invalid piece: {piece} at position {position}")
 
-        return [move for move in moves if self.valid_move(position, move)]
 
+    def generate_valid_moves(self, position: Coordinate):
+        """generate all possible moves that are also valid"""
+        return [move for move in self.generate_moves(position) if self.valid_move(position, move)]
 
     def valid_move(self, pos, new_pos):
         """Return True if there is a piece at pos that can move legally to new_pos
@@ -217,9 +265,6 @@ class Game():
         if piece == EMPTY:
             return False
 
-        if new_square != EMPTY:
-            if get_colour(new_square) == get_colour(piece):
-                return False
         
         if strip_piece(piece) == PAWN:
             return self.validate_pawn(pos, new_pos)
@@ -436,11 +481,18 @@ class Game():
 
     def can_move_piece(self, pos, new_pos):
         """Attempt to move the piece if legal"""
+        piece = self.get_square(pos)
+        dest  = self.get_square(new_pos) #save this
+
         if not (self.valid_move(pos, new_pos) and self.turn == get_colour(self.get_square(pos))):
             return False
 
-        piece = self.get_square(pos)
-        dest  = self.get_square(new_pos) #save this
+        if dest != EMPTY:
+            if get_colour(dest) == get_colour(piece):
+                return False
+
+
+
 
         if self.in_check(self.turn):
             #option 1: move the king out of the way of attack
@@ -466,7 +518,6 @@ class Game():
         if self.is_enpessant(pos, new_pos):
             #remove the piece we are capturing!!
             op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
-            op_piece = self.get_square(op_position)
             self.replace_square(op_position, EMPTY)
 
         return True
@@ -542,10 +593,9 @@ class Game():
         """Return a new piece of type promotion w/ piece's attributes
 
         Assuming promotion in ['B', 'N', 'R', 'Q']"""
-        pos = piece.position
-        colour = piece.colour
-        promotions = {'B': Bishop(pos, colour), 'N' : Knight(pos, colour),
-                      'R' : Rook(pos, colour), 'Q': Queen(pos, colour)}
+        colour = get_colour(piece)
+        promotions = {'B': BISHOP | colour, 'N' : KNIGHT | colour,
+                      'R' : ROOK | colour, 'Q': QUEEN | colour}
         return promotions[promotion]
         
     
@@ -553,7 +603,6 @@ class Game():
         """Return True if the player is in checkmate, otherwise False"""
         for pos, target in self.generate_all_moves():
            if get_colour(self.get_square(pos)) == player and self.can_move_piece(pos, target) and not self.is_castle(pos, target):
-                print(f"saving us from checkmate: {pos} to {target}")
                 return False
         return True
 
@@ -566,7 +615,7 @@ if __name__ == "__main__":
             if game.board.get(pos) == EMPTY:
                 continue
             print(pos)
-            moves = game.generate_moves(pos)
+            moves = game.generate_valid_moves(pos)
             #make into recognisable words
             start = get_piece_name(game.board.get(pos))
             pos = coordinate_to_square(pos)
