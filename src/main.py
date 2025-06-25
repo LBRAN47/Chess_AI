@@ -28,7 +28,10 @@ def game_loop(board, file=None):
 
             moveset = parse_move(move, board)
             if moveset is not None:
-                np, old_ep, old_cr = board.move_piece(moveset)
+                info = board.move_piece(moveset)
+                if info is None:
+                    continue
+                np, old_ep, old_cr = info
                 print(board)
                 board.unmove_piece(moveset, np, old_ep, old_cr)
                 print("\nundo...")

@@ -138,7 +138,7 @@ class Game():
             
 
     def generate_all_attacking_moves(self) -> set[Coordinate]:
-        """generates every possible move in the board at this state"""
+        """generates every possible ATTACKING move in the board at this state"""
         ans = set()
         for col in range(8):
             for row in range(8):
@@ -164,7 +164,7 @@ class Game():
         return ans
 
     def generate_attacking_moves(self, position: Coordinate) -> list[Coordinate]:
-        """generate all possible ATTACKING moves"""
+        """generate all possible ATTACKING moves for the piece at position"""
         piece = self.board.get(position)
         if piece == EMPTY or piece is None:
             return []
@@ -193,7 +193,6 @@ class Game():
                     if square is None:
                         break
                     if square != EMPTY:
-                        print(square)
                         moves.append(move)
                         if not (strip_piece(square) == KING and get_colour(square) != get_colour(piece)):
                             break
@@ -267,7 +266,7 @@ class Game():
 
     def generate_valid_moves(self, position: Coordinate):
         """generate all possible moves that are also valid"""
-        return [move for move in self.generate_moves(position) if self.valid_move(position, move)]
+        return [move for move in self.generate_moves(position) if self.can_move_piece(position, move)]
 
     def valid_move(self, pos, new_pos):
         """Return True if there is a piece at pos that can move legally to new_pos
@@ -409,40 +408,43 @@ class Game():
     def is_castle(self, pos, new_pos):
         """Return True if the move is a castle"""
         piece = self.get_square(pos)
-        return (strip_piece(piece) == KING and self.right_to_castle(pos, new_pos)
-        and tuple_diff(pos, new_pos) in [(2,0), (-2,0)])
+        return (strip_piece(piece) == KING and tuple_diff(pos, new_pos) in [(2,0), (-2,0)])
 
     def king_castle_valid(self, king, pos, new_pos):
         """Return True if this king can move from pos to new_pos, in a way that
         satisfies the rules of castling."""
         return (not self.in_check(get_colour(king))
                 and self.get_square(new_pos) == EMPTY
-                and self.valid_move(pos, new_pos))
+                and self.valid_move(pos, new_pos)
+                and self.right_to_castle(pos, new_pos))
 
     def is_valid_castle(self, king, pos, new_pos):
         """Return True if we can castle from pos to new_pos"""
         delta = get_delta(pos, new_pos)
-        og_pos = pos
+        
+        if not self.right_to_castle(pos, new_pos):
+            return False
+
+        if self.in_check(get_colour(king)):
+            return False
+
+        target = pos
+        while target != new_pos:
+            target = tuple_add(target, delta)
+            if (self.is_attacked(target)
+                or self.get_square(target) != EMPTY):
+                return False
 
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
         rook = self.get_square(rook_pos)
-        if rook == EMPTY or get_colour(rook) != get_colour(king):
-            return False
-        while pos != new_pos:
-            target = tuple_add(pos, delta)
-            if not self.king_castle_valid(king, pos, target):
-                self.backtrack(king, og_pos, pos, None)
-                return False
-            self.change_piece_position(pos, target)
-            pos = target
-
-        if self.in_check(get_colour(king)):
-            self.backtrack(king, og_pos, pos, None)
+        if rook == EMPTY or get_colour(rook) != get_colour(king) or self.is_attacked(rook_pos):
             return False
 
-        self.backtrack(king, og_pos, pos, None)
         return True
 
+    def is_attacked(self, pos):
+        """check if the position can be attacked by the player opposite to the current turn"""
+        return check_bit_board(self.squares_attacked, pos)
 
     def in_check(self, player):
         """return True if the player is in check, otherwise False
@@ -450,7 +452,7 @@ class Game():
         Where player is either 'WHITE' or 'BLACK' """
 
         king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
-        return check_bit_board(self.squares_attacked, king_pos)
+        return self.is_attacked(king_pos)
 
     def generate_blockable_squares(self, target: Coordinate):
         """return the bitboard representing the squares that can
@@ -499,14 +501,12 @@ class Game():
                 return False
 
 
-
-
         if self.in_check(self.turn):
             #option 1: move the king out of the way of attack
             if strip_piece(piece) == KING:
                 if tuple_diff(pos, new_pos) in [(2,0), (-2,0)]: #cannot castle out of check
                     return False
-                if not check_bit_board(self.squares_attacked, new_pos):
+                if not self.is_attacked(new_pos):
                     return True
                 return False
             #option 2: block the attacking piece with one of our own
@@ -659,10 +659,14 @@ class Game():
 
         num_moves = 0
         for move in moves:
-            dest, old_ep, old_cr = self.move_piece(move)
-            print(self)
-            self.perft(depth-1)
-            self.unmove_piece(move, dest, old_ep, old_cr)
+            info = self.move_piece(move)
+            if info is None:
+                print(f"unable to move piece which is said to be possible: {move}")
+                print(self)
+            else:
+                dest, old_ep, old_cr = info
+                num_moves += self.perft(depth-1)
+                self.unmove_piece(move, dest, old_ep, old_cr)
 
         return num_moves
 
@@ -674,6 +678,7 @@ class Game():
 
 if __name__ == "__main__":
     game = Game()
-    for i in range(4):
-        print(game.perft(i))
+    ans = ""
+    for i in range(7):
+        print(f"at depth {i}: {game.perft(i)}")
 
