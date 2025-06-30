@@ -2,6 +2,7 @@ import math
 
 type Piece = int
 type Coordinate = tuple[int, int]
+type Moveset = tuple[Coordinate, Coordinate, int|None]
 
 EMPTY = 0
 PAWN = 1

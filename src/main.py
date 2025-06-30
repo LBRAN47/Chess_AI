@@ -3,6 +3,7 @@ from parser import (parse_PGN, parse_move)
 from util import WHITE
 import argparse
 
+
 def game_loop(board, file=None):
     if file is not None:
         with open(file) as f:
