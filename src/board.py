@@ -460,7 +460,7 @@ class Game():
                     bbs.append(bb)
         return bbs
 
-    def can_move_piece(self, pos, new_pos):
+    def legal_move(self, pos, new_pos):
         """Attempt to move the piece if legal"""
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
@@ -473,6 +473,9 @@ class Game():
             return False
 
         if dest != EMPTY and get_colour(dest) == get_colour(piece):
+            return False
+        
+        if strip_piece(piece) == KING and self.is_attacked(new_pos):
             return False
 
 
@@ -525,7 +528,7 @@ class Game():
         old_ep = self.ep_target
         old_cr = self.castling
 
-        if not self.can_move_piece(pos, new_pos):
+        if not self.legal_move(pos, new_pos):
             return
         
         if self.is_castle(pos, new_pos):
@@ -604,7 +607,7 @@ class Game():
         """Return True if the player is in checkmate, otherwise False"""
         for pos, target, _ in self.generate_all_legal_moves():
             piece = self.get_square(pos)
-            if get_colour(piece) == player and self.can_move_piece(pos, target) and not self.is_castle(pos, target):
+            if get_colour(piece) == player and self.legal_move(pos, target) and not self.is_castle(pos, target):
                 return False
         return True
 
@@ -670,10 +673,14 @@ class Game():
         else:
             raise ValueError(f"invalid piece: {piece} at position {position}")
         return [move for move in ans if not out_of_bounds(move)]
+    
 
     def generate_valid_moves(self, position: Coordinate):
+        return [move for move in self.generate_moves(position) if self.valid_move(position, move)]
+
+    def generate_legal_moves(self, position: Coordinate):
         """generate all possible moves that are also valid"""
-        return [move for move in self.generate_moves(position) if self.can_move_piece(position, move)]
+        return [move for move in self.generate_moves(position) if self.legal_move(position, move)]
 
     def generate_attacking_moves(self, position: Coordinate) -> list[Coordinate]:
         """generate all valid ATTACKING moves for the piece at position"""
@@ -704,8 +711,6 @@ class Game():
                 move = tuple_add(position, delta)
                 while not out_of_bounds(move):
                     square = self.get_square(move)
-                    if square is None:
-                        break
                     if square != EMPTY:
                         moves.append(move)
                         if not (strip_piece(square) == KING and get_colour(square) != get_colour(piece)):
@@ -735,7 +740,7 @@ class Game():
 
     def generate_all_legal_moves(self):
         """generates a list of all moves that are strictly legal"""
-        return [(pos, new_pos, prom) for (pos, new_pos, prom) in self.generate_all_moves() if self.can_move_piece(pos, new_pos)]
+        return [(pos, new_pos, prom) for (pos, new_pos, prom) in self.generate_all_moves() if self.legal_move(pos, new_pos)]
 
     def generate_all_attacking_moves(self) -> set[Coordinate]:
         """generates every valid ATTACKING move in the board at this state"""
@@ -756,24 +761,37 @@ class Game():
         for move in moves:
             info = self.move_piece(move)
             if info is None:
-                print(f"unable to move piece which is said to be possible: {prev_moves + [move]}")
-                print(self)
-            else:
-                dest, old_ep, old_cr = info
-                num_moves += self.perft(depth-1, prev_moves + [move])
-                self.unmove_piece(move, dest, old_ep, old_cr)
+                continue
+            dest, old_ep, old_cr = info
+            num_moves += self.perft(depth-1, prev_moves + [move])
+            self.unmove_piece(move, dest, old_ep, old_cr)
 
         return num_moves
-
-
-
-
-        
+    
+    def show_split_perft(self, depth):
+        """do perft and show each path """
+        count = 0
+        for move in self.generate_all_legal_moves():
+            pos, new_pos, prom = move
+            movestring = coordinate_to_square(pos) + coordinate_to_square(new_pos)
+            info = self.move_piece(move)
+            num = self.perft(depth)
+            print(f"{movestring}: {num}")
+            dest, old_ep, old_cr = info
+            self.unmove_piece(move, dest, old_ep, old_cr)
+            count += num
+        print(f"total nodes: {count}")
 
 
 if __name__ == "__main__":
     game = Game()
-    ans = ""
-    for i in range(7):
-        print(f"at depth {i}: {game.perft(i)}")
+    #game.move_piece(((1,7), (2,5), None))
+    #game.move_piece(((4,1), (4,3), None))
+    #game.show_split_perft(1)
 
+
+    game = Game()
+    for i in range(6):
+        print(f"number of moves at depth {i} = {game.perft(i)}")
+    pos = (1,6)
+    new_pos = (1,5)

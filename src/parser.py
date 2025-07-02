@@ -244,7 +244,7 @@ def parse_pawn(move, board):
             print("ending square is invalid")
         candidate_squares = [(start_col, ending_square[1]+1), (start_col, ending_square[1]-1)]
         for coord in candidate_squares:
-            if board.can_move_piece(coord, ending_square):
+            if board.legal_move(coord, ending_square):
                 ans = (coord, ending_square, None)
                 break
         if ans is None:
@@ -262,7 +262,7 @@ def parse_pawn(move, board):
             coord = (start_col, ending_square[1]+i)
             if out_of_bounds(coord) or not strip_piece(board.get_square(coord)) == PAWN:
                 continue
-            if board.can_move_piece(coord, ending_square):
+            if board.legal_move(coord, ending_square):
                 ans = (coord, ending_square, None)
         if ans is None:
             print(f"no valid move {move}")
@@ -315,7 +315,7 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
             if square == EMPTY:
                 continue
             if (strip_piece(PIECES[piece_str]) == strip_piece(square)
-            and board.can_move_piece((col, row), target_coords)):
+            and board.legal_move((col, row), target_coords)):
                 if moveset is not None:
                     print("Insufficient disambiguation")
                     return
