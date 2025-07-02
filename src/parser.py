@@ -1,4 +1,3 @@
-from pieces import Pawn
 from board import Game
 from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,

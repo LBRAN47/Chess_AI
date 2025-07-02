@@ -34,6 +34,7 @@ PIECES = {"P": WHITE_PAWN, "p" : BLACK_PAWN,
         "Q": WHITE_QUEEN, "q" : BLACK_QUEEN,
         "K": WHITE_KING, "k" : BLACK_KING}
 INV_PIECES = {value: key for key, value in PIECES.items()}
+SLIDING_PIECES = [ROOK, BISHOP, QUEEN]
 
 START_BOARD = [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK] \
               + ([BLACK_PAWN] * 8) \
@@ -85,7 +86,7 @@ def strip_piece(piece: Piece) -> Piece:
     """Returns the piece striped of its colour (e.g. strip_piece(BLACK | BISHOP) == BISHOP)"""
     return piece & (1 << 2 | 1 << 1 | 1 << 0)
 
-def tuple_add(a, b):
+def tuple_add(a: Coordinate, b: Coordinate) -> Coordinate:
     """
     returns the element-wise addition of 2 tuples
     e.g. tuple_add((1, 1), (3, -2)) == (4, -1)
