@@ -14,7 +14,7 @@ def game_loop(board, view, file=None):
         print("Press ENTER to show next move")
     while True:
             board.print_board()
-            view.show_board(board)
+            view.show_board(board, None)
             if file is None:
                 print(f"Turn: {board.turn}")
                 move = input("Make a move: ")
@@ -71,13 +71,15 @@ class Main():
 if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
     cmd_parser.add_argument("file", nargs='?', default=None, help="specify a PGN file to run")
+    cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
     args = cmd_parser.parse_args()
     view = View()
     board = Board()
-    Main(board, view)
-    while True:
-        board = Board()
-        game_loop(board, view, args.file)
-        ans = input("Play Again? ")
-        if ans not in ['y', 'Y', 'yes']:
-            break
+    if args.GUI:
+        Main(board, view)
+    else:
+        while True:
+            game_loop(board, view, args.file)
+            ans = input("Play Again? ")
+            if ans not in ['y', 'Y', 'yes']:
+                break
