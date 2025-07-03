@@ -29,7 +29,7 @@ class Game():
         self.ep_target = ep_target
         self.halfs = halfs
         self.fulls = fulls
-        
+
         for col in range(8):
             for row in range(8):
                 if self.get_square((col, row)) == WHITE_KING:
@@ -137,6 +137,11 @@ class Game():
                 self.white_pieces.add(position)
             elif get_colour(piece) == BLACK:
                 self.black_pieces.add(position)
+    
+    def is_empty(self, position):
+        if self.get_square(position) == EMPTY:
+            return True
+        return False
 
     def change_turn(self):
         """Swap Turns"""
@@ -498,7 +503,6 @@ class Game():
 
         if self.is_castle(pos, new_pos):
             return self.is_valid_castle(piece, pos, new_pos)
-
 
         if self.is_enpessant(pos, new_pos):
             return self.is_valid_enpessant(pos, new_pos)
