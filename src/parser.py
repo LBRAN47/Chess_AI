@@ -4,7 +4,12 @@ from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, K
                   coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
 
 def parse_FEN(text: str):
-    board, turn, castling, ep_target, halfs, fulls = text.split()
+    ans = text.split()
+    if len(ans) == 4:
+        board, turn, castling, ep_target = text.split()
+        halfs, fulls = 0, 0
+    else:
+        board, turn, castling, ep_target, halfs, fulls = text.split()
     board = get_board(board)
     turn  = WHITE if turn == "w" else BLACK
     castling = get_castling(castling)

@@ -1,9 +1,10 @@
 from board import Game
-from parser import (parse_PGN, parse_move)
+from parser import (parse_PGN, parse_move, parse_FEN)
 from util import WHITE
 from view import View
 import argparse
 import pygame as pg
+import time
 
 
 def game_loop(board, view, file=None):
@@ -120,16 +121,38 @@ class Main():
 
 if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
-    cmd_parser.add_argument("file", nargs='?', default=None, help="specify a PGN file to run")
     cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
+
+    subparsers = cmd_parser.add_subparsers(dest="command", required=False)
+    
+    file_parser = subparsers.add_parser("file")
+    file_parser.add_argument("file", default=None, help="specify a PGN file to run")
+
+    perft = subparsers.add_parser("perft")
+    perft.add_argument("FEN", default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
+    perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
+
     args = cmd_parser.parse_args()
-    view = View()
-    board = Game()
     if args.GUI:
+        view = View()
+        board = Game()
         Main(board, view)
+
+    if args.command == "perft":
+        game = parse_FEN(args.FEN)
+        for i in range(args.depth):
+            start = time.time()
+            num = game.perft(i)
+            end = time.time()
+            print(f"number of moves at depth {i} = {num} in {end - start}s")
     else:
+        view = View()
+        board = Game()
         while True:
-            game_loop(board, view, args.file)
+            if args.command == "file":
+                game_loop(board, view, args.file)
+            else:
+                game_loop(board, view)
             ans = input("Play Again? ")
             if ans not in ['y', 'Y', 'yes']:
                 break
