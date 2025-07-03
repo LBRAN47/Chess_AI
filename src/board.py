@@ -42,7 +42,7 @@ class Board():
     def print_board(self):
         print()
         for row in range(8):
-            row_string = f"{row+1} |"
+            row_string = f"{abs(row - 8)} |"
             for col in range(8):
                 if self.board[row][col] is None:
                     row_string += " "
@@ -62,6 +62,11 @@ class Board():
         """replace the postiion in board with piece"""
         self.board[position[1]][position[0]] = piece
         return
+    
+    def is_empty(self, position):
+        if self.get_square(position) == None:
+            return True
+        return False
 
     def change_turn(self):
         """Swap Turns"""

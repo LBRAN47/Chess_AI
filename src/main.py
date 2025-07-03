@@ -15,6 +15,7 @@ def game_loop(board, view, file=None):
     while True:
             board.print_board()
             view.show_board(board, None)
+            view.update_board()
             if file is None:
                 print(f"Turn: {board.turn}")
                 move = input("Make a move: ")
@@ -37,33 +38,76 @@ def game_loop(board, view, file=None):
 
 class Main():
 
-    def __init__(self, board, view):
+    def __init__(self, board: Board, view: View):
         self.board = board
         self.view = view
         self.piece_held = None
-
+        self.piece_selected = None
+        self.piece_x = 0
+        self.piece_y = 0
         while True:
             for event in pg.event.get():
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
+                elif event.type == pg.MOUSEBUTTONUP:
+                    self.left_click_up_handler(event)
+                elif event.type == pg.MOUSEMOTION:
+                    self.mouse_movement_handler(event)
 
-            view.show_board(self.board, self.piece_held)
+            self.view.show_board(self.board, self.piece_selected, self.piece_held)
 
+            if self.is_piece_held():
+                self.view.show_held_piece(self.piece_x,
+                                          self.piece_y,
+                                          self.piece_held)
+
+            self.view.update_board()
+            
+            print(self.board.turn)
+            if self.board.in_checkmate(self.board.turn):
+                break
+
+
+
+    def is_piece_held(self):
+        return False if self.piece_held is None else True
+    
+    def is_piece_selected(self):
+        return False if self.piece_selected is None else True
 
 
     def left_click_handler(self, event):
         x, y = event.pos
+        target = self.view.get_piece_coords(x,y)
+        if self.piece_selected and target != self.piece_selected:
+            if self.board.can_move_piece(self.piece_selected, target):
+                moveset = (self.piece_selected, target, None)
+                self.board.move_piece(moveset)
+                self.piece_selected = None
+                self.piece_held = None
+                return
+            elif self.board.is_empty(target):
+                return
+        coords = self.view.get_piece_coords(x,y)
+        self.piece_held = coords if not self.board.is_empty(coords) else None
+        self.piece_selected = self.piece_held
+
+    def mouse_movement_handler(self, event):
+        self.piece_x, self.piece_y = event.pos
+
+
+    def left_click_up_handler(self, event):
         if self.piece_held:
-            target = self.view.get_piece(x,y)
+            x, y = event.pos
+            target = self.view.get_piece_coords(x,y)
             if self.board.can_move_piece(self.piece_held, target):
                 moveset = (self.piece_held, target, None)
                 self.board.move_piece(moveset)
                 self.piece_held = None
+                self.piece_selected = None
                 return
-        coords = self.view.get_piece(x,y)
-        self.piece_held = coords if self.board.get_square(coords) is not None else None
-
-
+        self.piece_held = None
+            
 
 
 

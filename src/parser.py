@@ -11,9 +11,10 @@ class Parser():
         self.PIECES  = ['B', 'N', 'R', 'Q', 'K']
         self.COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
         self.ROWS    = ['1', '2', '3', '4', '5', '6', '7', '8']
-        TRUE_RC = [i for i in range(8)]
-        self.COLUMN_CONVERT = dict(zip(self.COLUMNS, TRUE_RC))
-        self.ROW_CONVERT = dict(zip(self.ROWS, TRUE_RC))
+        TRUE_R = [7,6,5,4,3,2,1,0]
+        TRUE_C = [i for i in range(8)]
+        self.COLUMN_CONVERT = dict(zip(self.COLUMNS, TRUE_C))
+        self.ROW_CONVERT = dict(zip(self.ROWS, TRUE_R))
 
 
     def parse_PGN(self, pgn):
@@ -227,9 +228,9 @@ class Parser():
             row = start_row if start_row is not None else row
             for col in range(8):
                 col = start_col if start_col is not None else col
-                square = board.get_square((col, row))
-                if square is None:
+                if board.is_empty((col, row)):
                     continue
+                square = board.get_square((col, row))
                 if str(square) == piece_str and board.can_move_piece((col, row), target_coords):
                     if moveset is not None:
                         print("Insufficient disambiguation")

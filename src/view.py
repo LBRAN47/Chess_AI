@@ -1,11 +1,13 @@
 
 import pygame as pg
+from board import Board
 import os
 
 directory = os.path.dirname(os.path.abspath(__file__))
 GREEN = pg.Color(118, 150, 86)
 CREAM = pg.Color(238,238,210)
 WHITE = pg.Color(255,255,255)
+BLACK = pg.Color(0,0,0)
 
 GREY = pg.Color(220,220,220)
 BLUE = pg.Color(0,76,153)
@@ -25,6 +27,11 @@ class BoardView(pg.Surface):
         self.square_width, self.square_height = self.square_dims
         self.img_cache = {}
         self.selected = None
+        self.held = None
+
+    def get_piece(self, row, col):
+        """return the piece img at row and column"""
+        return self.board[row][col]
 
     def make_board(self, board):
         """draws the board and pieces onto the surface, where board is a 2D array of pieces"""
@@ -36,7 +43,8 @@ class BoardView(pg.Surface):
                 x = col * self.square_width
                 square = board[row][col]
                 self.draw_square(x, y, row, col)
-                self.draw_piece(square, x, y, row, col)
+                if square is not None:
+                    self.draw_piece(square, x, y, row, col)
 
     def draw_square(self, x, y, row, col):
 
@@ -50,9 +58,7 @@ class BoardView(pg.Surface):
             self.blit(s, (x,y))
             pg.draw.rect(self, WHITE, pg.Rect(x, y, self.square_width, self.square_height), 5)
 
-    def draw_piece(self, square, x, y, row, col): 
-        if square is None:
-            return None
+    def save_image(self, square, row, col):
         filepath = get_piece_filename(square)
         if filepath in self.img_cache.keys():
             img = self.img_cache[filepath]
@@ -60,18 +66,24 @@ class BoardView(pg.Surface):
             img = pg.image.load(get_piece_filename(square))
             img = pg.transform.scale(img, self.square_dims)
             self.img_cache[filepath] = img
-        self.blit(img, (x,y))
         self.board[row][col] = img
+
+
+    def draw_piece(self, square, x, y, row, col): 
+        self.save_image(square, row, col)
+        if (col, row) != self.held:
+            self.blit(self.get_piece(row, col), (x,y))
+
+    def is_held_piece(self, row, col):
+        return self.held is not None and self.held == (col, row)
 
     def is_selected_piece(self, row, col):
         return self.selected is not None and self.selected == (col, row)
 
-    def show_possible_moves(self, board_obj):
-        if self.selected is None:
+    def show_possible_moves(self, board_obj: Board):
+        if self.selected is None or board_obj.is_empty(self.selected):
             return
-        selected = board_obj.get_square((self.selected[0], self.selected[1]))
-        if selected is None:
-            return
+        selected = board_obj.get_square(self.selected)
         for coords in selected.get_possible_moves():
             if board_obj.can_move_piece(selected.position, coords):
                 coords = ((coords[0]) * self.square_width + (self.square_width // 2),
@@ -87,15 +99,38 @@ class View():
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
-    def show_board(self, board_obj, selected):
+    def update_board(self):
+        pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
+
+    def clear(self):
+        self.window.fill(BLACK)
+
+    def show_board(self, board_obj, selected=None, held=None):
         board = board_obj.board
+        self.board.held = held
         self.board.selected = selected
         self.board.make_board(board)
         self.board.show_possible_moves(board_obj)
         self.window.blit(self.board, self.BOARD_LOC)
-        pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
+
+
+    def show_held_piece(self, x, y, piece_held):
+        col, row = piece_held
+        piece = self.board.get_piece(row, col)
+        if piece is None:
+            return
+        x = x - (self.board.square_width // 2)
+        y = y - (self.board.square_height // 2)
+        self.window.blit(piece, (x, y))
 
     def get_piece(self, x, y):
+        coords = self.get_piece_coords(x,y)
+        if coords is None:
+            return
+        col, row = coords
+        return self.board.get_piece(row, col)
+
+    def get_piece_coords(self, x, y):
         """return board coordinates based on x and y"""
         if x < self.BOARD_LOC[0] or x > self.BOARD_LOC[0] + self.BOARD_SIZE:
             return None
