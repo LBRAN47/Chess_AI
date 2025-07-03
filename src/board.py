@@ -89,12 +89,12 @@ class Game():
 
     def show_piece_positions(self):
         """print every position that is said to hold a piece"""
+        print("White pieces")
         for pos in self.white_pieces:
-            if self.get_square(pos) == EMPTY:
-                print(f"{pos} said to house piece but does not")
+            print(get_piece_name(self.get_square(pos)))
+        print("black pieces")
         for pos in self.black_pieces:
-            if self.get_square(pos) == EMPTY:
-                print(f"{pos} said to house piece but does not")
+            print(get_piece_name(self.get_square(pos)))
 
     def show_board(self):
         """print the board"""
@@ -128,15 +128,17 @@ class Game():
 
     def replace_square(self, position: Coordinate, piece: Piece):
         """replace the postiion in board with piece"""
+        self.white_pieces.discard(position)
+        self.black_pieces.discard(position)
+
         self.board.set(piece, position)
         if piece == EMPTY:
-            self.white_pieces.discard(position)
-            self.black_pieces.discard(position)
-        else: 
-            if get_colour(piece) == WHITE:
-                self.white_pieces.add(position)
-            elif get_colour(piece) == BLACK:
-                self.black_pieces.add(position)
+            return
+
+        if get_colour(piece) == WHITE:
+            self.white_pieces.add(position)
+        elif get_colour(piece) == BLACK:
+            self.black_pieces.add(position)
     
     def is_empty(self, position):
         if self.get_square(position) == EMPTY:
@@ -441,7 +443,7 @@ class Game():
         target = self.black_king_pos if self.turn == BLACK else self.white_king_pos
         dest = self.get_square(target)
         target_colour = get_colour(dest)
-        pieces  = self.white_pieces if target_colour == BLACK else self.black_pieces
+        pieces = self.white_pieces if target_colour == BLACK else self.black_pieces
         bbs = []
         for pos in pieces:
             piece = self.get_square(pos)
@@ -467,6 +469,8 @@ class Game():
 
     def legal_move(self, pos, new_pos):
         """Attempt to move the piece if legal"""
+        if out_of_bounds(pos) or out_of_bounds(new_pos):
+            return False
         piece = self.get_square(pos)
         dest  = self.get_square(new_pos) #save this
         king_pos = self.white_king_pos if self.turn == WHITE else self.black_king_pos

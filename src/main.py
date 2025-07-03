@@ -34,14 +34,7 @@ def game_loop(board, view, file=None):
             moveset = parse_move(move, board)
             if moveset is not None:
                 info = board.move_piece(moveset)
-                if info is None:
-                    continue
-                np, old_ep, old_cr = info
                 print(board)
-                board.unmove_piece(moveset, np, old_ep, old_cr)
-                print("\nundo...")
-                print(board)
-                board.move_piece(moveset)
 
                 if board.in_checkmate(board.turn):
                     board.change_turn()
@@ -57,6 +50,7 @@ class Main():
         self.piece_selected = None
         self.piece_x = 0
         self.piece_y = 0
+        clock = pg.time.Clock()
         while True:
             for event in pg.event.get():
                 if event.type == pg.MOUSEBUTTONDOWN:
@@ -74,6 +68,7 @@ class Main():
                                           self.piece_held)
 
             self.view.update_board()
+            clock.tick(100)
             
             if self.board.in_checkmate(self.board.turn):
                 break
