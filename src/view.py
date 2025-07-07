@@ -84,7 +84,8 @@ class BoardView(pg.Surface):
     def show_possible_moves(self, board_obj: Game):
         if self.selected is None or board_obj.is_empty(self.selected):
             return
-        for coords in board_obj.generate_legal_moves(self.selected):
+        for moveset in board_obj.generate_legal_moves(self.selected):
+                _, coords, _ = moveset
                 coords = ((coords[0]) * self.square_width + (self.square_width // 2),
                           (coords[1]) * self.square_width + (self.square_width // 2))
                 pg.draw.circle(self, GREY, coords, self.square_width // 5)

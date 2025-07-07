@@ -34,7 +34,7 @@ def game_loop(board, view, file=None):
 
             moveset = parse_move(move, board)
             if moveset is not None:
-                info = board.move_piece(moveset)
+                board.move_if_legal(moveset)
                 print(board)
 
                 if board.in_checkmate(board.turn):
@@ -109,7 +109,7 @@ class Main():
             target = self.view.get_piece_coords(x,y)
             if self.board.legal_move(self.piece_held, target):
                 moveset = (self.piece_held, target, None)
-                self.board.move_piece(moveset)
+                self.board.move_if_legal(moveset)
                 self.piece_held = None
                 self.piece_selected = None
                 return
@@ -121,7 +121,7 @@ class Main():
 
 if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
-    cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
+    cmd_parser.add_argument("-GUI", action="store_true", help="run GUI")
 
     subparsers = cmd_parser.add_subparsers(dest="command", required=False)
     
@@ -129,8 +129,8 @@ if __name__ == "__main__":
     file_parser.add_argument("file", default=None, help="specify a PGN file to run")
 
     perft = subparsers.add_parser("perft")
-    perft.add_argument("FEN", default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
     perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
+    perft.add_argument("--FEN", required=False, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
 
     args = cmd_parser.parse_args()
     if args.GUI:
@@ -142,7 +142,7 @@ if __name__ == "__main__":
         game = parse_FEN(args.FEN)
         for i in range(args.depth):
             start = time.time()
-            num = game.perft(i)
+            num = game.show_split_perft(i)
             end = time.time()
             print(f"number of moves at depth {i} = {num} in {end - start}s")
     else:
