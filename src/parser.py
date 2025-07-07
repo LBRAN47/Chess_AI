@@ -253,7 +253,7 @@ def parse_pawn(move, board):
                 ans = (coord, ending_square, None)
                 break
         if ans is None:
-            print(f"no valid move {move}")
+            print(f"no legal move {move}")
             return
         if len(move) == 4:
             return ans

@@ -338,7 +338,7 @@ class Game():
         #piece next to us (opposite colour)
         target_position = tuple_add(pos, (delta[0], 0))
         target_piece = self.get_square(target_position)
-        if target_piece != PAWN or get_colour(target_piece) == get_colour(piece):
+        if strip_piece(target_piece) != PAWN or get_colour(target_piece) == get_colour(piece):
             return False
         #piece has just moved.
         if self.ep_target != target_position:
@@ -384,7 +384,7 @@ class Game():
 
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
         rook = self.get_square(rook_pos)
-        if rook == EMPTY or get_colour(rook) != get_colour(king) or self.is_attacked(rook_pos, colour):
+        if rook == EMPTY or get_colour(rook) != get_colour(king):
             return False
 
         return True
@@ -676,7 +676,7 @@ class Game():
         """Return True if the player is in checkmate, otherwise False"""
         for pos, target, _ in self.generate_all_legal_moves():
             piece = self.get_square(pos)
-            if get_colour(piece) == player and self.legal_move(pos, target) and not self.is_castle(pos, target):
+            if get_colour(piece) == player and not self.is_castle(pos, target):
                 return False
         return True
 
@@ -857,7 +857,7 @@ class Game():
             dest, old_ep, old_cr = info
             self.unmove_piece(move, dest, old_ep, old_cr)
             count += num
-        print(f"total nodes: {count}")
+        return count
 
 
 if __name__ == "__main__":

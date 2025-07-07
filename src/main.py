@@ -121,7 +121,8 @@ class Main():
 
 if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
-    cmd_parser.add_argument("-GUI", action="store_true", help="run GUI")
+    cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
+    cmd_parser.add_argument("--FEN", required=False, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
 
     subparsers = cmd_parser.add_subparsers(dest="command", required=False)
     
@@ -130,29 +131,26 @@ if __name__ == "__main__":
 
     perft = subparsers.add_parser("perft")
     perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
-    perft.add_argument("--FEN", required=False, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
 
     args = cmd_parser.parse_args()
-    if args.GUI:
-        view = View()
-        board = Game()
-        Main(board, view)
 
     if args.command == "perft":
         game = parse_FEN(args.FEN)
-        for i in range(args.depth):
-            start = time.time()
-            num = game.show_split_perft(i)
-            end = time.time()
-            print(f"number of moves at depth {i} = {num} in {end - start}s")
+        start = time.time()
+        num = game.show_split_perft(args.depth)
+        end = time.time()
+        print(f"number of moves at depth {args.depth} = {num} in {end - start}s")
     else:
         view = View()
-        board = Game()
-        while True:
-            if args.command == "file":
-                game_loop(board, view, args.file)
-            else:
-                game_loop(board, view)
-            ans = input("Play Again? ")
-            if ans not in ['y', 'Y', 'yes']:
-                break
+        board = parse_FEN(args.FEN)
+        if args.GUI:
+            Main(board, view)
+        else:
+            while True:
+                if args.command == "file":
+                    game_loop(board, view, args.file)
+                else:
+                    game_loop(board, view)
+                ans = input("Play Again? ")
+                if ans not in ['y', 'Y', 'yes']:
+                    break
