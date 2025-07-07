@@ -1,3 +1,4 @@
+from math import pi
 from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   ListBoard, ALL, coordinate_to_square, INV_PIECES,
@@ -393,14 +394,23 @@ class Game():
         """check if the position can be attacked by the player opposite to the current turn"""
         
         if colour_attacked is None:
-            colour = BLACK if get_colour(self.get_square(pos)) == WHITE else WHITE
+            pieces = self.black_pieces if get_colour(self.get_square(pos)) == WHITE else self.white_pieces
         else:
-            colour = BLACK if colour_attacked == WHITE else WHITE
+            pieces = self.black_pieces if colour_attacked == WHITE else self.white_pieces
 
-        for attacker in self.white_pieces if colour == WHITE else self.black_pieces:
-            if self.valid_move(attacker, pos):
+        for attacker in pieces:
+            piece_type = strip_piece(self.get_square(attacker))
+            if piece_type == PAWN and not self.is_pawn_attack(attacker, pos):
+                    continue
+            if pos != attacker and self.valid_move(attacker, pos):
                 return True
         return False
+    
+    def is_pawn_attack(self, pos, new_pos):
+        """return true if the piece at pos is a Pawn and the new_position is
+        a single square away on a diagonal. Assumes that the peice at pos is a pawn"""
+        delta = get_delta(pos, new_pos)
+        return delta[0] != 0 and abs(delta[1]) == 1
 
     def in_check(self, player):
         """return True if the player is in check, otherwise False
@@ -453,6 +463,25 @@ class Game():
         if piece_pos[1] == other[1]:
             return True
         return abs(piece_pos[0] - other[0]) == abs(piece_pos[1] - other[1])
+
+    def get_line(self, piece_pos, other):
+        if piece_pos[1] > other[1]:
+            delta = get_delta(piece_pos, other)
+        else:
+            delta = get_delta(other, piece_pos)
+        return delta
+
+    def all_on_same_line(self, piece_pos:Coordinate, other:Coordinate, *args):
+        if not self.on_same_line(piece_pos, other):
+            return False
+        cur_line = self.get_line(piece_pos, other)
+        for arg in args:
+            if self.get_line(arg, other) != cur_line:
+                return False
+        return True
+
+
+
 
 
 
@@ -564,13 +593,14 @@ class Game():
                 return False
             #option 2: block the attacking piece with one of our own
             bb_blockables = self.generate_blockable_squares(king_pos)
-            if not check_bit_board(bb_blockables, new_pos) and not self.is_pinned(piece, pos, new_pos):
-                return False
-            return True  
+            if check_bit_board(bb_blockables, new_pos) and not self.is_pinned(piece, pos, new_pos):
+                return True
+            return False 
 
         #ensure we are not revealing a check
         if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
-            return False
+            #i.e. if we are pinned, we must REMAIN on the same line
+            return self.all_on_same_line(pos, king_pos, new_pos)
 
         return True
     def change_piece_position(self, pos, new_pos, promotion=None):
@@ -848,6 +878,7 @@ class Game():
     def show_split_perft(self, depth):
         """do perft and show each path """
         count = 0
+        moves = dict()
         for move in self.generate_all_legal_moves():
             pos, new_pos, prom = move
             movestring = coordinate_to_square(pos) + coordinate_to_square(new_pos)
@@ -857,7 +888,8 @@ class Game():
             dest, old_ep, old_cr = info
             self.unmove_piece(move, dest, old_ep, old_cr)
             count += num
-        return count
+            moves[movestring] = num
+        return moves, count
 
 
 if __name__ == "__main__":

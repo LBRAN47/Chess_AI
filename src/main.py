@@ -130,6 +130,7 @@ if __name__ == "__main__":
     file_parser.add_argument("file", default=None, help="specify a PGN file to run")
 
     perft = subparsers.add_parser("perft")
+    perft.add_argument("--comp", help="textfile from stockfish to compare our output to")
     perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
 
     args = cmd_parser.parse_args()
@@ -137,9 +138,26 @@ if __name__ == "__main__":
     if args.command == "perft":
         game = parse_FEN(args.FEN)
         start = time.time()
-        num = game.show_split_perft(args.depth)
+        moves, num = game.show_split_perft(args.depth)
         end = time.time()
         print(f"number of moves at depth {args.depth} = {num} in {end - start}s")
+
+        if args.comp is not None:
+            with open(args.comp, 'r') as f:
+                for line in f:
+                    line = line[3:]
+                    line = line.split()
+                    if len(line) == 0:
+                        continue
+                    if line[0][-1] == ":":
+                        move = line[0][:-1]
+                        num = int(line[1])
+                        if move in moves.keys() and moves[move] != num:
+                            print(f"move {move} was said to have {moves[move]}, actually has {num}")
+
+                    
+
+                
     else:
         view = View()
         board = parse_FEN(args.FEN)
