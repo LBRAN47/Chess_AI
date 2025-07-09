@@ -289,8 +289,6 @@ class Game():
             return False
         if piece in SLIDING_PIECES:
             return self.check_slide(pos, new_pos)
-        if piece == PAWN:
-            return self.valid_pawn(pos, new_pos)
         return True
 
     def check_slide(self, pos: Coordinate, new_pos: Coordinate):
@@ -309,7 +307,7 @@ class Game():
             ghost_pos = tuple_add(ghost_pos, delta)
         return True
 
-    def valid_pawn(self, pos: Coordinate, new_pos: Coordinate):
+    def legal_pawn(self, pos: Coordinate, new_pos: Coordinate):
         """checks the validity of the pawn move"""
 
         diff = tuple_diff(pos, new_pos)
@@ -328,11 +326,11 @@ class Game():
                 if self.board.get((pos[0], pos[1] + inbetween)) != EMPTY:
                     return False
         if (delta[0] != 0 and new_square == EMPTY):
-            return self.is_valid_enpessant(pos, new_pos) 
+            return self.is_legal_enpessant(pos, new_pos) 
 
         return True
 
-    def is_valid_enpessant(self, pos, new_pos):
+    def is_legal_enpessant(self, pos, new_pos):
         """Return True if we can capture enpessant"""
         delta = get_delta(pos, new_pos)
         piece = self.get_square(pos)
@@ -365,7 +363,7 @@ class Game():
                 and self.valid_move(pos, new_pos)
                 and self.right_to_castle(pos, new_pos))
 
-    def is_valid_castle(self, king, pos, new_pos):
+    def is_legal_castle(self, king, pos, new_pos):
         """Return True if we can castle from pos to new_pos"""
         colour = get_colour(king)
         delta = get_delta(pos, new_pos)
@@ -384,6 +382,11 @@ class Game():
                 return False
 
         rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
+        target = tuple_add(target, delta)
+        while target != rook_pos:
+            if self.get_square(target) != EMPTY:
+                return False
+            target = tuple_add(target, delta)
         rook = self.get_square(rook_pos)
         if rook == EMPTY or get_colour(rook) != get_colour(king):
             return False
@@ -401,7 +404,7 @@ class Game():
         for attacker in pieces:
             piece_type = strip_piece(self.get_square(attacker))
             if piece_type == PAWN and not self.is_pawn_attack(attacker, pos):
-                    continue
+                continue
             if pos != attacker and self.valid_move(attacker, pos):
                 return True
         return False
@@ -476,7 +479,7 @@ class Game():
             return False
         cur_line = self.get_line(piece_pos, other)
         for arg in args:
-            if self.get_line(arg, other) != cur_line:
+            if not self.on_same_line(arg, other) or self.get_line(arg, other) != cur_line:
                 return False
         return True
 
@@ -553,7 +556,11 @@ class Game():
         return bbs
 
     def legal_move(self, pos, new_pos, perft=None):
-        """Attempt to move the piece if legal"""
+        """Attempt to move the piece if legal. A legality check enusres that
+        the move is valid (see valid_move) and also ensures all the rules of 
+        chess are upheld. These include check rules, pawn movement rules,
+        enpessant, castling, and turns."""
+
         if out_of_bounds(pos) or out_of_bounds(new_pos):
             return False
         piece = self.get_square(pos)
@@ -574,16 +581,15 @@ class Game():
             return False
 
         if self.is_castle(pos, new_pos):
-            return self.is_valid_castle(piece, pos, new_pos)
+            return self.is_legal_castle(piece, pos, new_pos)
 
-        if self.is_enpessant(pos, new_pos):
-            return self.is_valid_enpessant(pos, new_pos)
+        if strip_piece(piece) == PAWN and not self.legal_pawn(pos, new_pos):
+            return False
 
         cur_in_check = perft if perft is not None else self.in_check(self.turn)
 
         if not cur_in_check and not (strip_piece(piece) == KING) and not self.on_same_line(pos, king_pos):
             return True
-
 
         if cur_in_check:
             #option 1: move the king out of the way of attack
@@ -603,13 +609,14 @@ class Game():
             return self.all_on_same_line(pos, king_pos, new_pos)
 
         return True
+
     def change_piece_position(self, pos, new_pos, promotion=None):
         """move the piece w/o changing the turn"""
 
         piece = self.get_square(pos)
         self.replace_square(pos, EMPTY)
         if promotion is not None:
-            piece = self.get_promotion_piece(piece, promotion)
+            piece = promotion
         self.replace_square(new_pos, piece)
         if piece == WHITE_KING:
             self.white_king_pos = new_pos
@@ -691,6 +698,14 @@ class Game():
         """Return true if this is a pawn moving two squares"""
         piece = self.get_square(pos)
         return strip_piece(piece) == PAWN and abs(pos[1] - new_pos[1]) == 2
+
+    def is_promotion_move(self, new_pos, piece):
+        """return true if the piece is a pawn moving onto the last rank"""
+        colour = get_colour(piece)
+        return (strip_piece(piece) == PAWN and
+                ((new_pos[1] == 0 and colour == WHITE) or
+                 (new_pos[1] == 7 and colour == BLACK)))
+
 
     def get_promotion_piece(self, piece, promotion):
         """Return a new piece of type promotion w/ piece's attributes
@@ -782,12 +797,12 @@ class Game():
         this board from the starting position"""
         ans = []
         piece = self.get_square(position)
+        colour = get_colour(piece)
         append = ans.append
         for move in self.generate_moves(position):
             if not self.legal_move(position, move):
                 continue
-            if strip_piece(piece) == PAWN and move[1] == 0:
-                colour = get_colour(piece)
+            if self.is_promotion_move(move, piece):
                 for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
                     append((position, move, prom_piece | colour))
             else:
@@ -838,7 +853,7 @@ class Game():
             for move in self.generate_moves(pos):
                 if not self.legal_move(pos, move, perft):
                     continue
-                if strip_piece(piece) == PAWN and move[1] == 0:
+                if self.is_promotion_move(move, piece):
                     colour = get_colour(piece)
                     for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
                         append((pos, move, prom_piece | colour))

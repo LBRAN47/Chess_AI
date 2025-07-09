@@ -1,0 +1,52 @@
+>> go perft 2
+<< info string Available processors: 0-19
+<< info string Using 1 thread
+<< info string NNUE evaluation using nn-1c0000000000.nnue (133MiB, (22528, 3072, 15, 32, 1))
+<< info string NNUE evaluation using nn-37f18f62d772.nnue (6MiB, (22528, 128, 15, 32, 1))
+<< b4b3: 49
+<< g6g5: 49
+<< c7c6: 51
+<< d7d6: 49
+<< c7c5: 51
+<< h3g2: 48
+<< b4a3: 51
+<< e6d5: 50
+<< b4c3: 48
+<< b6a4: 49
+<< b6c4: 48
+<< b6d5: 50
+<< b6c8: 50
+<< f6e4: 53
+<< f6g4: 49
+<< f6d5: 51
+<< f6h5: 51
+<< f6h7: 51
+<< f6g8: 51
+<< a6e2: 43
+<< a6d3: 48
+<< a6c4: 48
+<< a6b5: 49
+<< a6b7: 50
+<< a6c8: 50
+<< g7h6: 50
+<< g7f8: 50
+<< a8b8: 50
+<< a8c8: 50
+<< a8d8: 50
+<< h8h4: 50
+<< h8h5: 50
+<< h8h6: 50
+<< h8h7: 50
+<< h8f8: 50
+<< h8g8: 50
+<< e7c5: 50
+<< e7d6: 49
+<< e7d8: 50
+<< e7f8: 50
+<< e8d8: 50
+<< e8f8: 50
+<< e8g8: 50
+<< e8c8: 50
+<< 
+<< Nodes searched: 2186
+<< 

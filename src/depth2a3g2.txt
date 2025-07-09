@@ -1,0 +1,141 @@
+>> go perft 2
+<< info string Available processors: 0-19
+<< info string Using 1 thread
+<< info string NNUE evaluation using nn-1c0000000000.nnue (133MiB, (22528, 3072, 15, 32, 1))
+<< info string NNUE evaluation using nn-37f18f62d772.nnue (6MiB, (22528, 128, 15, 32, 1))
+<< b2b3: 52
+<< h2h3: 52
+<< a3a4: 52
+<< d5d6: 51
+<< h2h4: 51
+<< a3b4: 51
+<< d5e6: 56
+<< c3b1: 52
+<< c3d1: 52
+<< c3a2: 52
+<< c3a4: 52
+<< c3b5: 49
+<< e5d3: 53
+<< e5c4: 52
+<< e5g4: 54
+<< e5c6: 51
+<< e5g6: 52
+<< e5d7: 55
+<< e5f7: 54
+<< d2c1: 53
+<< d2e3: 53
+<< d2f4: 53
+<< d2g5: 52
+<< d2h6: 49
+<< e2d1: 54
+<< e2f1: 58
+<< e2d3: 52
+<< e2c4: 51
+<< e2b5: 49
+<< e2a6: 46
+<< a1b1: 53
+<< a1c1: 53
+<< a1d1: 53
+<< a1a2: 53
+<< h1f1: 53
+<< h1g1: 45
+<< f3g2: 45
+<< f3d3: 52
+<< f3e3: 53
+<< f3g3: 53
+<< f3h3: 52
+<< f3f4: 53
+<< f3g4: 53
+<< f3f5: 55
+<< f3h5: 51
+<< f3f6: 49
+<< e1d1: 53
+<< e1c1: 53
+<< 
+<< Nodes searched: 2495
+<< 
+>> position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/PPN2Q2/2PBBPpP/R3K2R b KQkq - 0 2
+>> d
+<< 
+<<  +---+---+---+---+---+---+---+---+
+<<  | r |   |   |   | k |   |   | r | 8
+<<  +---+---+---+---+---+---+---+---+
+<<  | p |   | p | p | q | p | b |   | 7
+<<  +---+---+---+---+---+---+---+---+
+<<  | b | n |   |   | p | n | p |   | 6
+<<  +---+---+---+---+---+---+---+---+
+<<  |   |   |   | P | N |   |   |   | 5
+<<  +---+---+---+---+---+---+---+---+
+<<  |   | p |   |   | P |   |   |   | 4
+<<  +---+---+---+---+---+---+---+---+
+<<  | P | P | N |   |   | Q |   |   | 3
+<<  +---+---+---+---+---+---+---+---+
+<<  |   |   | P | B | B | P | p | P | 2
+<<  +---+---+---+---+---+---+---+---+
+<<  | R |   |   |   | K |   |   | R | 1
+<<  +---+---+---+---+---+---+---+---+
+<<    a   b   c   d   e   f   g   h
+<< 
+<< Fen: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/PPN2Q2/2PBBPpP/R3K2R b KQkq - 0 2
+<< Key: 587BDDD419434A71
+<< Checkers: 
+>> go perft 1
+<< info string Available processors: 0-19
+<< info string Using 1 thread
+<< info string NNUE evaluation using nn-1c0000000000.nnue (133MiB, (22528, 3072, 15, 32, 1))
+<< info string NNUE evaluation using nn-37f18f62d772.nnue (6MiB, (22528, 128, 15, 32, 1))
+<< g6g5: 1
+<< c7c6: 1
+<< d7d6: 1
+<< c7c5: 1
+<< g2h1q: 1
+<< g2h1r: 1
+<< g2h1b: 1
+<< g2h1n: 1
+<< g2g1q: 1
+<< g2g1r: 1
+<< g2g1b: 1
+<< g2g1n: 1
+<< b4a3: 1
+<< e6d5: 1
+<< b4c3: 1
+<< b6a4: 1
+<< b6c4: 1
+<< b6d5: 1
+<< b6c8: 1
+<< f6e4: 1
+<< f6g4: 1
+<< f6d5: 1
+<< f6h5: 1
+<< f6h7: 1
+<< f6g8: 1
+<< a6e2: 1
+<< a6d3: 1
+<< a6c4: 1
+<< a6b5: 1
+<< a6b7: 1
+<< a6c8: 1
+<< g7h6: 1
+<< g7f8: 1
+<< a8b8: 1
+<< a8c8: 1
+<< a8d8: 1
+<< h8h2: 1
+<< h8h3: 1
+<< h8h4: 1
+<< h8h5: 1
+<< h8h6: 1
+<< h8h7: 1
+<< h8f8: 1
+<< h8g8: 1
+<< e7c5: 1
+<< e7d6: 1
+<< e7d8: 1
+<< e7f8: 1
+<< e8d8: 1
+<< e8f8: 1
+<< e8g8: 1
+<< e8c8: 1
+<< 
+<< Nodes searched: 52
+<< 
