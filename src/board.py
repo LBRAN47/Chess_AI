@@ -236,7 +236,7 @@ class Game():
                 if diff[0] not in [-1, 0, 1]:
                     return False
             elif diff[1] == -2:
-                if pos[1] != 6: #i.e not on starting square
+                if pos[1] != 6 or diff[0] != 0: #i.e not on starting square
                     return False
             else:
                 return False
@@ -245,7 +245,7 @@ class Game():
                 if diff[0] not in [-1, 0, 1]:
                     return False
             elif diff[1] == 2:
-                if pos[1] != 1:
+                if pos[1] != 1 or diff[0] != 0:
                     return False
             else:
                 return False
@@ -342,6 +342,8 @@ class Game():
         #piece has just moved.
         if self.ep_target != target_position:
             return False
+        if self.is_pinned(piece, pos, new_pos, ignore=self.ep_target):
+            return False
         return True
 
     def is_enpessant(self, pos, new_pos):
@@ -402,24 +404,29 @@ class Game():
             pieces = self.black_pieces if colour_attacked == WHITE else self.white_pieces
 
         for attacker in pieces:
-            piece_type = strip_piece(self.get_square(attacker))
-            if piece_type == PAWN and not self.is_pawn_attack(attacker, new_pos):
-                continue
+            attacker_piece = self.get_square(attacker)
+            piece_type = strip_piece(attacker_piece)
+            if piece_type == PAWN:
+                if self.is_pawn_attack(attacker, new_pos, get_colour(attacker_piece)):
+                    return True
+                else:
+                    continue
             if new_pos != attacker and self.valid_move(attacker, new_pos):
                 return True
             #the piece may be blocking itself, we need to check this, only if we are moving
             if pos is None:
                 continue
-            if self.valid_move(attacker, pos) and self.all_on_same_line(attacker, pos, new_pos):
+            if self.valid_move(attacker, pos) and new_pos != attacker and self.all_on_same_line(attacker, pos, new_pos):
                 return True
                 
         return False
     
-    def is_pawn_attack(self, pos, new_pos):
+    def is_pawn_attack(self, pos, new_pos, colour):
         """return true if the piece at pos is a Pawn and the new_position is
         a single square away on a diagonal. Assumes that the peice at pos is a pawn"""
-        delta = get_delta(pos, new_pos)
-        return delta[0] != 0 and abs(delta[1]) == 1
+        diff = tuple_diff(pos, new_pos)
+        direction = -1 if colour == WHITE else 1
+        return diff[1] == direction and abs(diff[0]) == 1
 
     def in_check(self, player):
         """return True if the player is in check, otherwise False
@@ -489,8 +496,11 @@ class Game():
                 return False
         return True
 
-    def is_pinned(self, piece, position, new_pos):
-        """return True if the piece at position is pinned to its own king, False otherwise"""
+    def is_pinned(self, piece, position, new_pos, ignore=None):
+        """return True if the piece at position is pinned to its own king, False otherwise.
+        If ignore is specified. We treat the piece at that position as if its
+        wasn't there (this is for enpessant)"""
+
         if piece == EMPTY:
             raise Exception("check xray on empty square")
         colour = get_colour(piece)
@@ -510,11 +520,17 @@ class Game():
         running_pos = king
         running_pos = tuple_add(running_pos, direction)
         while running_pos != position and not out_of_bounds(running_pos):
+            if ignore is not None and running_pos == ignore:
+                running_pos = tuple_add(running_pos, direction)
+                continue
             if self.get_square(running_pos) != EMPTY:
                 return False
             running_pos = tuple_add(running_pos, direction)
         running_pos = tuple_add(running_pos, direction)
         while not out_of_bounds(running_pos):
+            if ignore is not None and running_pos == ignore:
+                running_pos = tuple_add(running_pos, direction)
+                continue
             square = self.get_square(running_pos)
             if square != EMPTY:
                 if get_colour(square) != colour:

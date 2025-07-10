@@ -3,6 +3,8 @@ from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, K
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
                   coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
 
+NO_CASTLING = 0
+
 def parse_FEN(text: str):
     ans = text.split()
     if len(ans) == 4:
@@ -40,6 +42,8 @@ def get_castling(text: str) -> int:
         4th bit: set if black can Queenside castle
     """
     castle_int = 0
+    if text == "-":
+        return NO_CASTLING
     for castle in text:
         if castle in CASTLES.keys():
             castle_int = castle_int | CASTLES[castle]

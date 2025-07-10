@@ -62,6 +62,8 @@ class Main():
     def game_loop(self):
         clock = pg.time.Clock()
 
+        if self.board.in_check(self.board.turn):
+            print("IN CHECKKKKKKK")
         while True:
             for event in pg.event.get():
                 if event.type == pg.MOUSEBUTTONDOWN:
@@ -191,6 +193,9 @@ if __name__ == "__main__":
                         num = int(line[1])
                         if move in moves.keys() and moves[move] != num:
                             print(f"move {move} was said to have {moves[move]}, actually has {num}")
+                            a, b, c = game.move_piece(move)
+                            game.show_split_perft(args.depth - 1)
+                            game.unmove_piece(move, a, b, c)
     else:
         view = View()
         board = parse_FEN(args.FEN)
