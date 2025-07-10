@@ -377,7 +377,7 @@ class Game():
         target = pos
         while target != new_pos:
             target = tuple_add(target, delta)
-            if (self.is_attacked(target, colour)
+            if (self.is_attacked(target, colour_attacked=colour)
                 or self.get_square(target) != EMPTY):
                 return False
 
@@ -393,20 +393,26 @@ class Game():
 
         return True
 
-    def is_attacked(self, pos, colour_attacked=None):
+    def is_attacked(self, new_pos, pos=None, colour_attacked=None):
         """check if the position can be attacked by the player opposite to the current turn"""
         
         if colour_attacked is None:
-            pieces = self.black_pieces if get_colour(self.get_square(pos)) == WHITE else self.white_pieces
+            pieces = self.black_pieces if get_colour(self.get_square(new_pos)) == WHITE else self.white_pieces
         else:
             pieces = self.black_pieces if colour_attacked == WHITE else self.white_pieces
 
         for attacker in pieces:
             piece_type = strip_piece(self.get_square(attacker))
-            if piece_type == PAWN and not self.is_pawn_attack(attacker, pos):
+            if piece_type == PAWN and not self.is_pawn_attack(attacker, new_pos):
                 continue
-            if pos != attacker and self.valid_move(attacker, pos):
+            if new_pos != attacker and self.valid_move(attacker, new_pos):
                 return True
+            #the piece may be blocking itself, we need to check this, only if we are moving
+            if pos is None:
+                continue
+            if self.valid_move(attacker, pos) and self.all_on_same_line(attacker, pos, new_pos):
+                return True
+                
         return False
     
     def is_pawn_attack(self, pos, new_pos):
@@ -421,7 +427,7 @@ class Game():
         Where player is either 'WHITE' or 'BLACK' """
 
         king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
-        return self.is_attacked(king_pos, player)
+        return self.is_attacked(king_pos, colour_attacked=player)
 
     def generate_blockable_squares(self, target: Coordinate) -> BitBoard:
         """return the bitboard representing the squares that can
@@ -483,11 +489,6 @@ class Game():
                 return False
         return True
 
-
-
-
-
-
     def is_pinned(self, piece, position, new_pos):
         """return True if the piece at position is pinned to its own king, False otherwise"""
         if piece == EMPTY:
@@ -496,6 +497,7 @@ class Game():
         king = self.white_king_pos if colour == WHITE else self.black_king_pos
         king_col, king_row = king
         col, row = position
+        #get the direction from the king to the piece in question
         if king_col == col:
             direction = (0,-1) if row - king_row < 0 else (0,1)
         elif king_row == row:
@@ -504,6 +506,7 @@ class Game():
             direction = get_delta(king, position)
         else:
             return False
+        #one at a time, move in that direction
         running_pos = king
         running_pos = tuple_add(running_pos, direction)
         while running_pos != position and not out_of_bounds(running_pos):
@@ -577,7 +580,7 @@ class Game():
         if dest != EMPTY and get_colour(dest) == colour:
             return False
         
-        if strip_piece(piece) == KING and self.is_attacked(new_pos, colour):
+        if strip_piece(piece) == KING and self.is_attacked(new_pos, pos, colour):
             return False
 
         if self.is_castle(pos, new_pos):
@@ -591,10 +594,15 @@ class Game():
         if not cur_in_check and not (strip_piece(piece) == KING) and not self.on_same_line(pos, king_pos):
             return True
 
+        #ensure we are not revealing a check
+        if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
+            #i.e. if we are pinned, we must REMAIN on the same line
+            return strip_piece(piece) != KING and self.all_on_same_line(pos, king_pos, new_pos)
+
         if cur_in_check:
             #option 1: move the king out of the way of attack
             if strip_piece(piece) == KING:
-                if not (self.is_castle(pos, new_pos) or self.is_attacked(new_pos,colour)):
+                if not (self.is_castle(pos, new_pos) or self.is_attacked(new_pos,colour_attacked=colour)):
                     return True
                 return False
             #option 2: block the attacking piece with one of our own
@@ -603,10 +611,6 @@ class Game():
                 return True
             return False 
 
-        #ensure we are not revealing a check
-        if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
-            #i.e. if we are pinned, we must REMAIN on the same line
-            return self.all_on_same_line(pos, king_pos, new_pos)
 
         return True
 

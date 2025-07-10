@@ -1,11 +1,13 @@
 from board import Game
 from parser import (parse_PGN, parse_move, parse_FEN)
-from util import WHITE
+from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK
 from view import View
 import argparse
 import pygame as pg
 import time
 
+KEY_TO_PIECE = {pg.K_b : BISHOP, pg.K_r : ROOK, pg.K_k : KNIGHT, pg.K_q : QUEEN}
+NO_PROMOTION = None
 
 def game_loop(board, view, file=None):
     if file is not None:
@@ -51,7 +53,15 @@ class Main():
         self.piece_selected = None
         self.piece_x = 0
         self.piece_y = 0
+        self.promoting = False
+        self.promoting_move = None
+        self.in_checkmate = False
+
+        self.game_loop()
+
+    def game_loop(self):
         clock = pg.time.Clock()
+
         while True:
             for event in pg.event.get():
                 if event.type == pg.MOUSEBUTTONDOWN:
@@ -60,6 +70,8 @@ class Main():
                     self.left_click_up_handler(event)
                 elif event.type == pg.MOUSEMOTION:
                     self.mouse_movement_handler(event)
+                elif event.type == pg.KEYDOWN:
+                    self.key_press_handler(event)
 
             self.view.show_board(self.board, self.piece_selected, self.piece_held)
 
@@ -68,10 +80,11 @@ class Main():
                                           self.piece_y,
                                           self.piece_held)
 
+
             self.view.update_board()
             clock.tick(100)
             
-            if self.board.in_checkmate(self.board.turn):
+            if self.in_checkmate:
                 break
 
 
@@ -82,16 +95,28 @@ class Main():
     def is_piece_selected(self):
         return False if self.piece_selected is None else True
 
+    def key_press_handler(self, event):
+        if not self.promoting:
+            return
+        key = event.key
+        if key in KEY_TO_PIECE.keys():
+            piece = KEY_TO_PIECE[key] | self.board.turn
+            self.move_piece(self.promoting_move, piece)
+            self.promoting = False
+
 
     def left_click_handler(self, event):
+        if self.promoting:
+            return 
         x, y = event.pos
         target = self.view.get_piece_coords(x,y)
         if self.piece_selected and target != self.piece_selected:
             if self.board.legal_move(self.piece_selected, target):
-                moveset = (self.piece_selected, target, None)
-                self.board.move_piece(moveset)
-                self.piece_selected = None
-                self.piece_held = None
+                if self.board.is_promotion_move(target, self.board.get_square(self.piece_selected)):
+                    self.promoting = True
+                    self.promoting_move = target
+                    return
+                self.move_piece(target, NO_PROMOTION)
                 return
             elif self.board.is_empty(target):
                 return
@@ -104,16 +129,28 @@ class Main():
 
 
     def left_click_up_handler(self, event):
+        if self.promoting:
+            return
         if self.piece_held:
             x, y = event.pos
             target = self.view.get_piece_coords(x,y)
-            if self.board.legal_move(self.piece_held, target):
-                moveset = (self.piece_held, target, None)
-                self.board.move_if_legal(moveset)
-                self.piece_held = None
-                self.piece_selected = None
+            if self.piece_selected and self.piece_selected != target and self.board.legal_move(self.piece_held, target):
+                if self.board.is_promotion_move(target, self.board.get_square(self.piece_selected)):
+                    self.promoting = True
+                    self.promoting_move = target
+                    self.piece_held = None
+                    return
+                self.move_piece(target, NO_PROMOTION)
                 return
         self.piece_held = None
+
+    def move_piece(self, target, promotion_piece):
+        moveset = (self.piece_selected, target, promotion_piece)
+        self.board.move_piece(moveset)
+        self.piece_selected = None
+        self.piece_held = None
+        if self.board.in_checkmate(self.board.turn):
+            self.in_checkmate = True
             
 
 
@@ -154,10 +191,6 @@ if __name__ == "__main__":
                         num = int(line[1])
                         if move in moves.keys() and moves[move] != num:
                             print(f"move {move} was said to have {moves[move]}, actually has {num}")
-
-                    
-
-                
     else:
         view = View()
         board = parse_FEN(args.FEN)

@@ -28,6 +28,7 @@ class BoardView(pg.Surface):
         self.square_width, self.square_height = self.square_dims
         self.img_cache = {}
         self.selected = None
+        self.selected_possible_moves = None
         self.held = None
 
     def get_piece(self, row, col):
@@ -81,10 +82,18 @@ class BoardView(pg.Surface):
     def is_selected_piece(self, row, col):
         return self.selected is not None and self.selected == (col, row)
 
-    def show_possible_moves(self, board_obj: Game):
-        if self.selected is None or board_obj.is_empty(self.selected):
+    def update_selection(self, selected, board_obj):
+        if selected is None:
+            self.selected = selected
             return
-        for moveset in board_obj.generate_legal_moves(self.selected):
+        if selected is not None and selected != self.selected:
+            self.selected = selected
+            self.selected_possible_moves = board_obj.generate_legal_moves(self.selected)
+
+    def show_possible_moves(self, board_obj: Game):
+        if self.selected is None or self.selected_possible_moves is None or board_obj.is_empty(self.selected):
+            return
+        for moveset in self.selected_possible_moves:
                 _, coords, _ = moveset
                 coords = ((coords[0]) * self.square_width + (self.square_width // 2),
                           (coords[1]) * self.square_width + (self.square_width // 2))
@@ -108,7 +117,7 @@ class View():
     def show_board(self, board_obj, selected=None, held=None):
         board = board_obj.board
         self.board.held = held
-        self.board.selected = selected
+        self.board.update_selection(selected, board_obj)
         self.board.make_board(board)
         self.board.show_possible_moves(board_obj)
         self.window.blit(self.board, self.BOARD_LOC)
