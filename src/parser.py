@@ -1,5 +1,6 @@
 from board import Game
-from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
+from typing import List, Tuple
+from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, ListBoard,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
                   coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
 
@@ -51,7 +52,7 @@ def get_castling(text: str) -> int:
             raise Exception(f"Invalid character in castle section: {castle}")
     return castle_int
 
-def get_ep_target(text: str) -> Coordinate | None:
+def get_ep_target(text: str) -> Tuple[int, int] | None:
     """Returns the coordinates of the ep target square, or None if no square is provided"""
     if text == '-':
         return None
@@ -149,20 +150,20 @@ def parse_PGN( pgn):
 def get_coordinate(row, col):
     """Return a coordinate tuple based on the row and collumn string"""
     if col not in COLUMNS or row not in ROWS:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     return (COLUMN_CONVERT[col], ROW_CONVERT[row])
 
 
 def convert_coordinate(coord):
-    """Convert from Chess Coordinate to tuple"""
+    """Convert from Chess Tuple[int, int] to tuple"""
 
     if len(coord) != 2:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     col, row = coord 
     if col not in COLUMNS or row not in ROWS:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     return (COLUMN_CONVERT[col], ROW_CONVERT[row])
 

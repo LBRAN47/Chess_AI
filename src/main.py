@@ -1,12 +1,11 @@
 from board import Game
 from parser import (parse_PGN, parse_move, parse_FEN)
 from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK
+import pygame as pg
 from view import View
 import argparse
-import pygame as pg
 import time
 
-KEY_TO_PIECE = {pg.K_b : BISHOP, pg.K_r : ROOK, pg.K_k : KNIGHT, pg.K_q : QUEEN}
 NO_PROMOTION = None
 
 def game_loop(board, view, file=None):
@@ -46,7 +45,7 @@ def game_loop(board, view, file=None):
 
 class Main():
 
-    def __init__(self, board: Game, view: View):
+    def __init__(self, board, view):
         self.board = board
         self.view = view
         self.piece_held = None
@@ -101,6 +100,7 @@ class Main():
         if not self.promoting:
             return
         key = event.key
+        KEY_TO_PIECE = {pg.K_b : BISHOP, pg.K_r : ROOK, pg.K_k : KNIGHT, pg.K_q : QUEEN}
         if key in KEY_TO_PIECE.keys():
             piece = KEY_TO_PIECE[key] | self.board.turn
             self.move_piece(self.promoting_move, piece)
@@ -170,14 +170,19 @@ if __name__ == "__main__":
 
     perft = subparsers.add_parser("perft")
     perft.add_argument("--comp", help="textfile from stockfish to compare our output to")
+    perft.add_argument("--no_moves", action="store_true", help="show number of future moves for each possible move")
     perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
 
     args = cmd_parser.parse_args()
 
     if args.command == "perft":
         game = parse_FEN(args.FEN)
-        start = time.time()
-        moves, num = game.show_split_perft(args.depth)
+        if args.no_moves:
+            start = time.time()
+            num = game.perft(args.depth)
+        else:
+            start = time.time()
+            moves, num = game.show_split_perft(args.depth)
         end = time.time()
         print(f"number of moves at depth {args.depth} = {num} in {end - start}s")
 
