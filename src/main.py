@@ -5,6 +5,7 @@ import pygame as pg
 from view import View
 import argparse
 import time
+import subprocess
 
 NO_PROMOTION = None
 
@@ -60,11 +61,10 @@ class Main():
 
     def game_loop(self):
         clock = pg.time.Clock()
-
-        if self.board.in_check(self.board.turn):
-            print("IN CHECKKKKKKK")
         while True:
             for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    quit()
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
                 elif event.type == pg.MOUSEBUTTONUP:
@@ -156,6 +156,31 @@ class Main():
             
 
 
+#prepare subprocess for stockfish comparision
+stockfish = subprocess.Popen([
+    'stockfish'],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    universal_newlines=True,
+    bufsize=1)
+
+def read():
+    stockfish.stdin.write("isready\n")
+    stockfish.stdin.flush()
+    while True:
+        line = stockfish.stdout.readline().strip()
+        if line and line !="readyok":
+            print(line)
+        if line == "readyok":
+            break
+
+def drain():
+    stockfish.stdin.write("isready\n")
+    stockfish.stdin.flush()
+    while True:
+        line = stockfish.stdout.readline().strip()
+        if line == "readyok":
+            break
 
 
 if __name__ == "__main__":
@@ -169,8 +194,8 @@ if __name__ == "__main__":
     file_parser.add_argument("file", default=None, help="specify a PGN file to run")
 
     perft = subparsers.add_parser("perft")
-    perft.add_argument("--comp", help="textfile from stockfish to compare our output to")
-    perft.add_argument("--no_moves", action="store_true", help="show number of future moves for each possible move")
+    perft.add_argument("--comp", action="store_true", help="run stockfish on same position and compare output")
+    perft.add_argument("--no_moves", action="store_true", help="hide number of moves in each submove")
     perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
 
     args = cmd_parser.parse_args()
@@ -186,21 +211,13 @@ if __name__ == "__main__":
         end = time.time()
         print(f"number of moves at depth {args.depth} = {num} in {end - start}s")
 
-        if args.comp is not None:
-            with open(args.comp, 'r') as f:
-                for line in f:
-                    line = line[3:]
-                    line = line.split()
-                    if len(line) == 0:
-                        continue
-                    if line[0][-1] == ":":
-                        move = line[0][:-1]
-                        num = int(line[1])
-                        if move in moves.keys() and moves[move] != num:
-                            print(f"move {move} was said to have {moves[move]}, actually has {num}")
-                            a, b, c = game.move_piece(move)
-                            game.show_split_perft(args.depth - 1)
-                            game.unmove_piece(move, a, b, c)
+        if args.comp:
+            drain()
+            stockfish.stdin.write("position fen " + args.FEN + '\n')
+            stockfish.stdin.flush()
+            drain()
+            stockfish.stdin.write("go perft " + str(args.depth) + '\n')
+            read()
     else:
         view = View()
         board = parse_FEN(args.FEN)

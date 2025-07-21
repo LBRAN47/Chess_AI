@@ -419,11 +419,15 @@ class Game():
             if self.piece_can_attack(attacker, new_pos):
                 return True
             #also check whether the new_pos will be attackable following the move
-            if (self.valid_move(attacker, pos) and new_pos != attacker
-                and self.all_on_same_line(attacker, pos, new_pos)):
-                return True
+            attacking_piece = self.get_square(attacker)
+            if self.is_pinning_piece(strip_piece(attacking_piece)):
+                if (self.valid_move(attacker, pos) and new_pos != attacker
+                    and self.all_on_same_line(attacker, pos, new_pos)):
+                    return True
         return False
 
+    def is_pinning_piece(self, piece):
+        return piece == BISHOP or piece == ROOK or piece == QUEEN
     
     def is_pawn_attack(self, pos, new_pos):
         """return true if the piece at pos is a Pawn and the new_position is
@@ -541,7 +545,7 @@ class Game():
             square = self.get_square(running_pos)
             if square != EMPTY:
                 if get_colour(square) != colour:
-                    return self.correct_move(running_pos, king_pos) and running_pos != new_pos
+                    return self.correct_move(running_pos, king_pos) and running_pos != new_pos and strip_piece(square) != PAWN
                 else:
                     return False
             running_pos = tuple_add(running_pos, direction)
@@ -582,19 +586,19 @@ class Game():
             return False
 
 
+        #ensure we are not revealing a check
+        if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
+            #i.e. if we are pinned, we must REMAIN on the same line
+            if strip_piece(piece) == KING or not self.all_on_same_line(pos, king_pos, new_pos):
+                return False
+
         cur_in_check = perft if perft is not None else self.in_check(self.turn)
 
         if cur_in_check:
             #block the attacking piece with one of our own (we already checked king moves)
             bb_blockables = self.generate_blockable_squares(king_pos)
-            if check_bit_board(bb_blockables, new_pos):
-                return True
-            return False 
+            return check_bit_board(bb_blockables, new_pos)
 
-        #ensure we are not revealing a check
-        if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
-            #i.e. if we are pinned, we must REMAIN on the same line
-            return strip_piece(piece) != KING and self.all_on_same_line(pos, king_pos, new_pos)
 
 
 
@@ -866,6 +870,7 @@ class Game():
         if depth == 0:
             return 1
         
+
         in_check = self.in_check(self.turn)
 
         moves = self.generate_all_legal_moves(in_check)
@@ -889,13 +894,14 @@ class Game():
         for move in self.generate_all_legal_moves():
             pos, new_pos, prom = move
             movestring = coordinate_to_square(pos) + coordinate_to_square(new_pos)
-            info = self.move_piece(move)
-            num = self.perft(depth)
-            print(f"{movestring}: {num}")
-            dest, old_ep, old_cr = info
-            self.unmove_piece(move, dest, old_ep, old_cr)
-            count += num
-            moves[movestring] = num
+            info = self.move_if_legal(move)
+            if info is not None:
+                num = self.perft(depth)
+                print(f"{movestring}: {num}")
+                dest, old_ep, old_cr = info
+                self.unmove_piece(move, dest, old_ep, old_cr)
+                count += num
+                moves[movestring] = num
         return moves, count
 
 
