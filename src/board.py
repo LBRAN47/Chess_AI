@@ -712,11 +712,7 @@ class Game():
     
     def in_checkmate(self, player):
         """Return True if the player is in checkmate, otherwise False"""
-        for pos, target, _ in self.generate_all_legal_moves():
-            piece = self.get_square(pos)
-            if get_colour(piece) == player and not self.is_castle(pos, target):
-                return False
-        return True
+        return self.generate_all_legal_moves() == []
 
 
     def white_pawn_deltas(self, position: Tuple[int, int]) -> List[Tuple[int, int]]:
@@ -837,11 +833,12 @@ class Game():
                     append((pos, move, None))
         return ans
 
-    def generate_all_legal_moves(self, perft=False):
+    def generate_all_legal_moves(self, perft=None):
         """generates a List of all moves that are strictly legal"""
         ans = []
         append = ans.append
-        for pos in self.get_pieces():
+        pieces = self.white_pieces if self.turn == WHITE else self.black_pieces
+        for pos in pieces:
             piece = self.get_square(pos)
             for move in self.generate_moves(pos):
                 if not self.legal_move(pos, move, perft):

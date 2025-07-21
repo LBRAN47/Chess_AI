@@ -86,7 +86,7 @@ class Main():
             clock.tick(100)
             
             if self.in_checkmate:
-                break
+                quit()
 
 
 
