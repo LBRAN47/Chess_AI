@@ -205,11 +205,24 @@ if __name__ == "__main__":
         if args.no_moves:
             start = time.time()
             num = game.perft(args.depth)
+            end = time.time()
+            secs = end - start
+            start = time.time()
+            num2 = game.perft2(args.depth)
+            end = time.time()
+            secs2 = end - start
         else:
             start = time.time()
             moves, num = game.show_split_perft(args.depth)
-        end = time.time()
-        print(f"number of moves at depth {args.depth} = {num} in {end - start}s")
+            end = time.time()
+            secs = end - start
+            start = time.time()
+            moves2, num2 = game.show_perft2(args.depth)
+            end = time.time()
+            secs2 = end - start
+        print(f"perft1: number of moves at depth {args.depth} = {num} in {secs}s")
+        print(f"perft2: number of moves at depth {args.depth} = {num2} in {secs2}s")
+        
 
         if args.comp:
             drain()

@@ -286,6 +286,9 @@ class Game():
         base_piece = strip_piece(piece)
         if not self.correct_move(pos, new_pos):
             return False
+        opp = self.get_square(new_pos)
+        if opp != EMPTY and get_colour(opp) == get_colour(piece):
+            return False
         if base_piece == PAWN:
             diff = tuple_diff(pos, new_pos)
             direction = -1 if get_colour(piece) == WHITE else 1 
@@ -559,34 +562,32 @@ class Game():
 
         if out_of_bounds(pos) or out_of_bounds(new_pos):
             return False
+
+
         piece = self.get_square(pos)
         colour = get_colour(piece)
-        dest  = self.get_square(new_pos) #save this
-        king_pos = self.white_king_pos if self.turn == WHITE else self.black_king_pos
 
         if self.turn != colour:
             return False
 
-        if dest != EMPTY and get_colour(dest) == colour:
-            return False
+        dest  = self.get_square(new_pos) #save this
 
         if not self.valid_move(pos, new_pos):
             return False
         
-        if self.is_castle(pos, new_pos):
-            return self.is_legal_castle(piece, pos, new_pos)
+        if strip_piece(piece) == PAWN and not self.legal_pawn(pos, new_pos):
+            return False
 
         if strip_piece(piece) == KING:
-            if self.will_be_attacked(pos, new_pos, colour):
+            if self.is_castle(pos, new_pos):
+                return self.is_legal_castle(piece, pos, new_pos)
+            elif self.will_be_attacked(pos, new_pos, colour):
                 return False
             else:
                 return True
 
-        if strip_piece(piece) == PAWN and not self.legal_pawn(pos, new_pos):
-            return False
-
-
         #ensure we are not revealing a check
+        king_pos = self.white_king_pos if self.turn == WHITE else self.black_king_pos
         if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
             #i.e. if we are pinned, we must REMAIN on the same line
             if strip_piece(piece) == KING or not self.all_on_same_line(pos, king_pos, new_pos):
@@ -860,7 +861,52 @@ class Game():
             extend(self.generate_attacking_moves(pos))
         return ans
 
+    def is_pawn_move_promoting(self, pos: Tuple[int, int], colour: int):
+        """based on the colour moving, and the position, tells us if we are 
+        moving to a promotion square"""
+        return (colour == WHITE and pos[1] == 0) or (colour == BLACK and pos[1] == 7)
+
+    def generate_pseudo_legal_moves(self, pos: Tuple[int, int]):
+        """generate all pseudo legal moves from pos in this position
+        Pseudo Legal = any move that is valid, and doesn't leave the king in
+        check (though it may still result in a check"""
+
+        piece = self.get_square(pos)
+        colour = get_colour(piece)
+        moves = self.generate_moves(pos)
+
+        ans = []
+        append = ans.append
+
+        if piece is None:
+            raise ValueError("big boo boo")
+        elif strip_piece(piece) == PAWN:
+            for move in moves:
+                if not (self.valid_move(pos, move) and self.legal_pawn(pos, move)):
+                    continue
+                if self.is_pawn_move_promoting(move, colour):
+                    for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
+                        append((pos, move, prom_piece | colour))
+                else:
+                    append((pos, move, None))
+        else:
+            for move in moves:
+                if self.valid_move(pos, move):
+                    append((pos, move, None))
+        return ans
+
+    def generate_all_pseudo_legal_moves(self):
+        """Reutrns a list of all pseudolegal moves possible in this board"""
+        ans = []
+        pieces = self.black_pieces if self.turn == WHITE else self.white_pieces
+        extend = ans.extend
+        for piece in pieces:
+            ans.extend(self.generate_pseudo_legal_moves(piece))
+        return ans
+
+
     def perft(self, depth, prev_moves=None):
+        """Run perft at the given depth on this board"""
         if prev_moves is None:
             prev_moves = []
 
@@ -884,7 +930,7 @@ class Game():
         return num_moves
     
     def show_split_perft(self, depth):
-        """do perft and show each path """
+        """do perft and print each path"""
         depth = depth - 1
         count = 0
         moves = dict()
@@ -900,6 +946,49 @@ class Game():
                 count += num
                 moves[movestring] = num
         return moves, count
+
+    def perft2(self, depth, prev_moves=None):
+        if prev_moves is None:
+            prev_moves = []
+
+        if depth == 0:
+            return 1
+
+        moves = self.generate_all_pseudo_legal_moves()
+
+        num_moves = 0
+        for move in moves:
+            info = self.move_piece(move)
+            if self.in_check(self.turn):
+                self.unmove_piece(move, *info)
+            else:
+                num_moves += self.perft(depth-1, prev_moves + [move])
+                self.unmove_piece(move, *info)
+
+        return num_moves
+
+
+    def show_perft2(self, depth):
+        depth = depth - 1 
+        count = 0
+        moves = dict()
+        for move in self.generate_all_pseudo_legal_moves():
+            pos, new_pos, prom = move
+            movestring = coordinate_to_square(pos) + coordinate_to_square(new_pos)
+            info = self.move_piece(move)
+            if self.in_check(self.turn):
+                self.unmove_piece(move, *info)
+            else:
+                num = self.perft2(depth)
+                print(f"{movestring}: {num}")
+                self.unmove_piece(move, *info)
+                count += num
+                moves[movestring] = num
+        return moves, count
+
+
+
+
 
 
 if __name__ == "__main__":
