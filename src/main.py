@@ -1,6 +1,7 @@
-from board import Game
+from pygame.event import get
+from board import Game, perft, show_split_perft
 from parser import (parse_PGN, parse_move, parse_FEN)
-from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK
+from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK, get_real_index
 import pygame as pg
 from view import View
 import argparse
@@ -36,13 +37,16 @@ def game_loop(board, view, file=None):
 
             moveset = parse_move(move, board)
             if moveset is not None:
-                board.move_if_legal(moveset)
+                if moveset in board.generate_legal_moves(board.turn):
+                    board.move_piece(moveset)
                 print(board)
 
-                if board.in_checkmate(board.turn):
+                if board.is_checkmate(board.turn):
                     board.change_turn()
                     print(f"CHECKMATE. {board.turn} wins")
                     break
+                if board.is_stalemate(board.turn):
+                    print(f"STALEMATE, Its a draw!")
 
 class Main():
 
@@ -114,16 +118,16 @@ class Main():
         target = self.view.get_piece_coords(x,y)
         if self.piece_selected and target != self.piece_selected:
             if self.board.legal_move(self.piece_selected, target):
-                if self.board.is_promotion_move(target, self.board.get_square(self.piece_selected)):
+                if self.board.is_promotion_move(get_real_index(target), self.board.get_square(get_real_index(self.piece_selected))):
                     self.promoting = True
                     self.promoting_move = target
                     return
                 self.move_piece(target, NO_PROMOTION)
                 return
-            elif self.board.is_empty(target):
+            elif self.board.is_empty(get_real_index(target)):
                 return
         coords = self.view.get_piece_coords(x,y)
-        self.piece_held = coords if not self.board.is_empty(coords) else None
+        self.piece_held = coords if not self.board.is_empty(get_real_index(coords)) else None
         self.piece_selected = self.piece_held
 
     def mouse_movement_handler(self, event):
@@ -137,7 +141,9 @@ class Main():
             x, y = event.pos
             target = self.view.get_piece_coords(x,y)
             if self.piece_selected and self.piece_selected != target and self.board.legal_move(self.piece_held, target):
-                if self.board.is_promotion_move(target, self.board.get_square(self.piece_selected)):
+                if self.board.is_promotion_move(get_real_index(target), get_real_index(self.piece_selected)):
+                    print("MADE")
+                    print(target, self.piece_held)
                     self.promoting = True
                     self.promoting_move = target
                     self.piece_held = None
@@ -147,13 +153,14 @@ class Main():
         self.piece_held = None
 
     def move_piece(self, target, promotion_piece):
-        moveset = (self.piece_selected, target, promotion_piece)
+        print("MADE TO MOVE")
+        moveset = (get_real_index(self.piece_selected), get_real_index(target), promotion_piece)
         self.board.move_piece(moveset)
         self.piece_selected = None
         self.piece_held = None
-        if self.board.in_checkmate(self.board.turn):
+        if self.board.is_checkmate(self.board.turn):
             self.in_checkmate = True
-            
+        print(self.board)
 
 
 #prepare subprocess for stockfish comparision
@@ -193,10 +200,10 @@ if __name__ == "__main__":
     file_parser = subparsers.add_parser("file")
     file_parser.add_argument("file", default=None, help="specify a PGN file to run")
 
-    perft = subparsers.add_parser("perft")
-    perft.add_argument("--comp", action="store_true", help="run stockfish on same position and compare output")
-    perft.add_argument("--no_moves", action="store_true", help="hide number of moves in each submove")
-    perft.add_argument("depth", type=int, default=5, help="specify depth of perft search")
+    perft_parse = subparsers.add_parser("perft")
+    perft_parse.add_argument("--comp", action="store_true", help="run stockfish on same position and compare output")
+    perft_parse.add_argument("--no_moves", action="store_true", help="hide number of moves in each submove")
+    perft_parse.add_argument("depth", type=int, default=5, help="specify depth of perft search")
 
     args = cmd_parser.parse_args()
 
@@ -204,24 +211,15 @@ if __name__ == "__main__":
         game = parse_FEN(args.FEN)
         if args.no_moves:
             start = time.time()
-            num = game.perft(args.depth)
+            num = perft(game, args.depth)
             end = time.time()
             secs = end - start
-            start = time.time()
-            num2 = game.perft2(args.depth)
-            end = time.time()
-            secs2 = end - start
         else:
             start = time.time()
-            moves, num = game.show_split_perft(args.depth)
+            num = show_split_perft(game, args.depth)
             end = time.time()
             secs = end - start
-            start = time.time()
-            moves2, num2 = game.show_perft2(args.depth)
-            end = time.time()
-            secs2 = end - start
         print(f"perft1: number of moves at depth {args.depth} = {num} in {secs}s")
-        print(f"perft2: number of moves at depth {args.depth} = {num2} in {secs2}s")
         
 
         if args.comp:

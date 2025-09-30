@@ -47,8 +47,8 @@ CASTLES = {'K': WHITE_K_CASTLE, "Q": WHITE_Q_CASTLE,
            'k': BLACK_K_CASTLE, "q": BLACK_Q_CASTLE}
 INV_CASTLES = {value: key for key, value in CASTLES.items()}
 ALL = WHITE_K_CASTLE | WHITE_Q_CASTLE | BLACK_K_CASTLE | BLACK_Q_CASTLE
-WHITE_KING_START = (4,7)
-BLACK_KING_START = (4,0)
+WHITE_KING_START = 7*8 + 4
+BLACK_KING_START = 0*8 + 4
 
 PIECENAMES  = ['B', 'N', 'R', 'Q', 'K']
 COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -58,11 +58,14 @@ TRUE_R = [i for i in range(7, -1, -1)]
 COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_C))
 ROW_CONVERT = dict(zip(ROWS, TRUE_R))
 
+def get_real_index(square: tuple[int, int]) -> int:
+    return square[1]*8 + square[0]
+
 def get_piece_name(piece: int):
     return INV_PIECES[piece]
 
-def coordinate_to_square(c: Tuple[int, int]) -> str:
-    col, row = c
+def coordinate_to_square(c: int) -> str:
+    row, col = divmod(c, 8)
     ans = ""
     for key in COLUMN_CONVERT.keys():
         if COLUMN_CONVERT[key] == col:
@@ -95,14 +98,11 @@ def tuple_diff(a, b):
     """
     return (b[0] - a[0], b[1] - a[1])
 
-def out_of_bounds(x):
+def out_of_bounds(x: tuple[int, int]):
     """
     returns true if any element in x is outside of the bounds 0 to 7
     """
-    for num in x:
-        if num > 7 or num < 0:
-            return True
-    return False
+    return x[0] > 7 or x[0] < 0 or x[1] > 7 or x[1] < 0
 
 def filter_oob(x):
     return not out_of_bounds(x)
@@ -114,19 +114,6 @@ def remove_oob(moves):
     """
     return list(filter(filter_oob, moves))
 
-def get_delta(pos, new_pos):
-    """get a tuple of size 2 representing a single step towards new_pos from pos
-
-    e.g. pos = (2, 2) new_pos = (0,4) ==> delta = (-1, 1)
-
-    """
-    diff = (new_pos[0] - pos[0], new_pos[1] - pos[1])
-    delta_x = 0 if diff[0] == 0 else diff[0] // abs(diff[0])
-    delta_y = 0 if diff[1] == 0 else diff[1] // abs(diff[1]) 
-    return (delta_x, delta_y)
-
-
-    
 def interpreter(text):
     """Converts text into a tuple of coordinates.
 
@@ -147,8 +134,6 @@ def interpreter(text):
         squares.append((col, row))
     return squares
 
-
-   
 
 class ListBoard():
     """Simple data structure to simulate 2D array functionality w/ a 1D array"""
@@ -176,18 +161,19 @@ class ListBoard():
             col = index
         return self.rows*row + col 
 
-    def get(self, index: int | Tuple[int, int], row: int | None=None):
+    def get(self, index: int):
         """get allows for either a Tuple[int, int] or 2 integers to
         be passed. And returns the value accordingly"""
-        return self.board[self.get_true_index(index, row)]
+        return self.board[index]
 
-    def set(self, value:int, index: int | Tuple[int, int], row: int | None=None):
+    def set(self, value:int, index: int):
         """set the value at the coordinate, or row and column"""
-        idx = self.get_true_index(index, row)
-        self.board[idx] = value
+        self.board[index] = value
+
+    def copy(self):
+        return ListBoard(self.board.copy())
 
 
-START_BOARD = ListBoard(START_BOARD)
 
 def make_bit_board(squares: set[Tuple[int, int]]) -> int:
     bb = 0
@@ -202,7 +188,7 @@ def set_bit_board(board: int, coords: Tuple[int, int]):
     return board
 
 
-def check_bit_board(board: int, coords: Tuple[int, int]) -> bool:
+def check_bit_board(board: int, coords: Tuple[int, int]) -> int:
     return board & (1 << (8*coords[1] + coords[0]))
 
 def print_bit_board(bb: int):
@@ -216,27 +202,5 @@ def print_bit_board(bb: int):
             print(row)
             row = ""
 
-def compute_rays():
-    RAY_DIRS = [(-1, 0), (-1, 1), (0, 1), (1, 1),
-                (1, 0), (1, -1), (0, -1), (-1, -1)]
 
-    RAYS = {}
-    for row in range(8):
-        for col in range(8):
-            square = row * 8 + col
-            RAYS[square] = []
-            for drow, dcol in RAY_DIRS:
-                ray = []
-                nrow, ncol = row + drow, col + dcol
-                while 0 <= nrow < 8 and 0 <= ncol < 8:
-                    ray.append((nrow, ncol))
-                    nrow += drow
-                    ncol += dcol
-                RAYS[square].append(ray)
-
-        return RAYS;
-
-
-if __name__ == "__main__":
-    print(compute_rays())
 

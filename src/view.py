@@ -2,7 +2,7 @@
 import pygame as pg
 from board import Game
 import os
-from util import get_piece_name, get_colour, EMPTY 
+from util import get_piece_name, get_colour, EMPTY, get_real_index
 
 directory = os.path.dirname(os.path.abspath(__file__))
 GREEN = pg.Color(118, 150, 86)
@@ -35,7 +35,7 @@ class BoardView(pg.Surface):
         """return the piece img at row and column"""
         return self.board[row][col]
 
-    def make_board(self, board):
+    def make_board(self, board_obj):
         """draws the board and pieces onto the surface, where board is a 2D array of pieces"""
         rows, cols = 8, 8
         self.board = [[None]*cols for _ in range(rows)]
@@ -43,7 +43,7 @@ class BoardView(pg.Surface):
             y = row * self.square_height
             for col in range(cols):
                 x = col * self.square_width
-                square = board[row][col]
+                square = board_obj.get_square(row*8 + col)
                 self.draw_square(x, y, row, col)
                 if square != EMPTY:
                     self.draw_piece(square, x, y, row, col)
@@ -88,13 +88,14 @@ class BoardView(pg.Surface):
             return
         if selected is not None and selected != self.selected:
             self.selected = selected
-            self.selected_possible_moves = board_obj.generate_legal_moves(self.selected)
+            self.selected_possible_moves = board_obj.piece_legal_moves(get_real_index(self.selected))
 
     def show_possible_moves(self, board_obj: Game):
-        if self.selected is None or self.selected_possible_moves is None or board_obj.is_empty(self.selected):
+        if self.selected is None or self.selected_possible_moves is None or board_obj.is_empty(get_real_index(self.selected)):
             return
         for moveset in self.selected_possible_moves:
                 _, coords, _ = moveset
+                coords = (coords % 8, coords // 8) #convert back
                 coords = ((coords[0]) * self.square_width + (self.square_width // 2),
                           (coords[1]) * self.square_width + (self.square_width // 2))
                 pg.draw.circle(self, GREY, coords, self.square_width // 5)
@@ -118,7 +119,7 @@ class View():
         board = board_obj.board
         self.board.held = held
         self.board.update_selection(selected, board_obj)
-        self.board.make_board(board)
+        self.board.make_board(board_obj)
         self.board.show_possible_moves(board_obj)
         self.window.blit(self.board, self.BOARD_LOC)
 
