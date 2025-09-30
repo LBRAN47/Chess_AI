@@ -216,4 +216,27 @@ def print_bit_board(bb: int):
             print(row)
             row = ""
 
+def compute_rays():
+    RAY_DIRS = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+                (1, 0), (1, -1), (0, -1), (-1, -1)]
+
+    RAYS = {}
+    for row in range(8):
+        for col in range(8):
+            square = row * 8 + col
+            RAYS[square] = []
+            for drow, dcol in RAY_DIRS:
+                ray = []
+                nrow, ncol = row + drow, col + dcol
+                while 0 <= nrow < 8 and 0 <= ncol < 8:
+                    ray.append((nrow, ncol))
+                    nrow += drow
+                    ncol += dcol
+                RAYS[square].append(ray)
+
+        return RAYS;
+
+
+if __name__ == "__main__":
+    print(compute_rays())
 
