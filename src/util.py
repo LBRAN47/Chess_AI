@@ -1,9 +1,5 @@
 import math
-
-type Piece = int
-type Coordinate = tuple[int, int]
-type Moveset = tuple[Coordinate, Coordinate, int|None]
-
+from typing import List, Tuple
 EMPTY = 0
 PAWN = 1
 KING = 2
@@ -51,8 +47,8 @@ CASTLES = {'K': WHITE_K_CASTLE, "Q": WHITE_Q_CASTLE,
            'k': BLACK_K_CASTLE, "q": BLACK_Q_CASTLE}
 INV_CASTLES = {value: key for key, value in CASTLES.items()}
 ALL = WHITE_K_CASTLE | WHITE_Q_CASTLE | BLACK_K_CASTLE | BLACK_Q_CASTLE
-WHITE_KING_START = (4,7)
-BLACK_KING_START = (4,0)
+WHITE_KING_START = 7*8 + 4
+BLACK_KING_START = 0*8 + 4
 
 PIECENAMES  = ['B', 'N', 'R', 'Q', 'K']
 COLUMNS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -62,11 +58,14 @@ TRUE_R = [i for i in range(7, -1, -1)]
 COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_C))
 ROW_CONVERT = dict(zip(ROWS, TRUE_R))
 
-def get_piece_name(piece: Piece):
+def get_real_index(square: tuple[int, int]) -> int:
+    return square[1]*8 + square[0]
+
+def get_piece_name(piece: int):
     return INV_PIECES[piece]
 
-def coordinate_to_square(c: Coordinate) -> str:
-    col, row = c
+def coordinate_to_square(c: int) -> str:
+    row, col = divmod(c, 8)
     ans = ""
     for key in COLUMN_CONVERT.keys():
         if COLUMN_CONVERT[key] == col:
@@ -78,15 +77,15 @@ def coordinate_to_square(c: Coordinate) -> str:
             break
     return ans
 
-def get_colour(piece: Piece) -> int:
+def get_colour(piece: int) -> int:
     """Return the colour of the piece (i.e such that return value in [WHITE, BLACK])"""
     return piece & (1 << 3)
 
-def strip_piece(piece: Piece) -> Piece:
+def strip_piece(piece: int) -> int:
     """Returns the piece striped of its colour (e.g. strip_piece(BLACK | BISHOP) == BISHOP)"""
     return piece & (1 << 2 | 1 << 1 | 1 << 0)
 
-def tuple_add(a: Coordinate, b: Coordinate) -> Coordinate:
+def tuple_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     """
     returns the element-wise addition of 2 tuples
     e.g. tuple_add((1, 1), (3, -2)) == (4, -1)
@@ -99,14 +98,11 @@ def tuple_diff(a, b):
     """
     return (b[0] - a[0], b[1] - a[1])
 
-def out_of_bounds(x):
+def out_of_bounds(x: tuple[int, int]):
     """
     returns true if any element in x is outside of the bounds 0 to 7
     """
-    for num in x:
-        if num > 7 or num < 0:
-            return True
-    return False
+    return x[0] > 7 or x[0] < 0 or x[1] > 7 or x[1] < 0
 
 def filter_oob(x):
     return not out_of_bounds(x)
@@ -118,19 +114,6 @@ def remove_oob(moves):
     """
     return list(filter(filter_oob, moves))
 
-def get_delta(pos, new_pos):
-    """get a tuple of size 2 representing a single step towards new_pos from pos
-
-    e.g. pos = (2, 2) new_pos = (0,4) ==> delta = (-1, 1)
-
-    """
-    diff = (new_pos[0] - pos[0], new_pos[1] - pos[1])
-    delta_x = 0 if diff[0] == 0 else diff[0] // abs(diff[0])
-    delta_y = 0 if diff[1] == 0 else diff[1] // abs(diff[1]) 
-    return (delta_x, delta_y)
-
-
-    
 def interpreter(text):
     """Converts text into a tuple of coordinates.
 
@@ -152,12 +135,10 @@ def interpreter(text):
     return squares
 
 
-   
-
 class ListBoard():
     """Simple data structure to simulate 2D array functionality w/ a 1D array"""
 
-    def __init__(self, board_list: list[Piece]=[0]*64, rows:int | None=None):
+    def __init__(self, board_list: list[int]=[0]*64, rows:int | None=None):
         self.board = board_list
         self.length = len(board_list)
         self.rows = rows if rows is not None else int(math.sqrt(self.length))
@@ -168,11 +149,11 @@ class ListBoard():
             raise IndexError("Index out of range")
         return self.board[index*self.rows:(index+1)*self.rows]
 
-    def __setitem__(self, index: int, item: list[Piece]):
+    def __setitem__(self, index: int, item: list[int]):
         for i in range(8):
             self.board[self.rows*index + i] = item[i]
 
-    def get_true_index(self, index: int | Coordinate, row: int | None=None):
+    def get_true_index(self, index: int | Tuple[int, int], row: int | None=None):
         """from a set of coordinates, return the index to the concrete list"""
         if type(index) is not int:
             col, row = index
@@ -180,33 +161,34 @@ class ListBoard():
             col = index
         return self.rows*row + col 
 
-    def get(self, index: int | Coordinate, row: int | None=None):
-        """get allows for either a Coordinate or 2 integers to
+    def get(self, index: int):
+        """get allows for either a Tuple[int, int] or 2 integers to
         be passed. And returns the value accordingly"""
-        return self.board[self.get_true_index(index, row)]
+        return self.board[index]
 
-    def set(self, value:Piece, index: int | Coordinate, row: int | None=None):
+    def set(self, value:int, index: int):
         """set the value at the coordinate, or row and column"""
-        idx = self.get_true_index(index, row)
-        self.board[idx] = value
+        self.board[index] = value
+
+    def copy(self):
+        return ListBoard(self.board.copy())
 
 
-START_BOARD = ListBoard(START_BOARD)
 
-def make_bit_board(squares: set[Coordinate]) -> int:
+def make_bit_board(squares: set[Tuple[int, int]]) -> int:
     bb = 0
     for square in squares:
         bb = set_bit_board(bb, square)
     return bb
 
-def set_bit_board(board: int, coords: Coordinate):
+def set_bit_board(board: int, coords: Tuple[int, int]):
     col, row = coords
     true_coord = 8*row + col 
     board = board | (1 << true_coord)
     return board
 
 
-def check_bit_board(board: int, coords: Coordinate) -> bool:
+def check_bit_board(board: int, coords: Tuple[int, int]) -> int:
     return board & (1 << (8*coords[1] + coords[0]))
 
 def print_bit_board(bb: int):
@@ -219,5 +201,6 @@ def print_bit_board(bb: int):
         if val % 8 == 7:
             print(row)
             row = ""
+
 
 

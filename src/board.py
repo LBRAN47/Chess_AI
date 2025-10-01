@@ -1,55 +1,211 @@
-from util import (START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
+from math import pi, remainder
+from typing import List, Tuple
+import copy
+
+from pygame.event import get
+from util import (BLACK_BISHOP, START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
                   WHITE_Q_CASTLE, WHITE_K_CASTLE, BLACK_K_CASTLE, BLACK_Q_CASTLE,
                   ListBoard, ALL, coordinate_to_square, INV_PIECES,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
-                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, get_delta, WHITE_KING_START, BLACK_KING_START,
-                  make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES, SLIDING_PIECES
+                  WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, WHITE_KING_START, BLACK_KING_START,
+                  make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES, SLIDING_PIECES,
                     )
 
-type Coordinate = tuple[int, int]
-type Piece = int
-type BitBoard = int
-type Moveset = tuple[Coordinate, Coordinate, Piece|None]
-
+type Bitboard = int
+type Ray = list[int]
+EMPTY_BITBOARD = 0
 
 
 class Game():
     """Simulates a chess game. Keeps track of the game state and calculates
-    legal moves."""
+    legal moves. Also handles move generation and lookahead"""
 
-    def __init__(self, board: ListBoard=START_BOARD, turn: int=WHITE,
-                 castling: int=ALL, ep_target: Coordinate | None=None,
+    def __init__(self, board=None, turn: int=WHITE,
+                 castling: int=ALL, ep_target: Tuple[int, int] | None=None,
                  halfs: int=0, fulls: int=0):
-        self.board = board
-        self.turn = turn
-        self.castling = castling
+
+        if board is None:
+            self.board: ListBoard = ListBoard(START_BOARD)
+        else:
+            self.board: ListBoard = board
+        self.turn: int = turn
+
         #1st bit (MSB): set if white can Kingside castle
         #2nd bit: set if white can Queenside castle
         #3rd bit: set if black can Kingside castle
         #4th bit: set if black can Queenside castle
-        self.ep_target = ep_target
-        self.halfs = halfs
-        self.fulls = fulls
+        self.castling: int = castling
 
-        for col in range(8):
-            for row in range(8):
-                if self.get_square((col, row)) == WHITE_KING:
-                    self.white_king_pos = (col, row)
-                elif self.get_square((col, row)) == BLACK_KING:
-                    self.black_king_pos = (col, row)
+        self.ep_target: int = None if ep_target is None else self.board.get_true_index(ep_target)
+        self.halfs: int= halfs #number of half moves (for 50 move rule)
+        self.fulls: int = fulls#number of full moves (increments after black moves)
 
-        self.white_pieces = []
-        self.black_pieces = []
-        for col in range(8):
-            for row in range(8):
-                piece = self.get_square((col, row))
+        self.white_pieces: Bitboard = EMPTY_BITBOARD
+        self.black_pieces: Bitboard = EMPTY_BITBOARD
+        self.white_pawns: Bitboard = EMPTY_BITBOARD
+        self.white_knights: Bitboard = EMPTY_BITBOARD
+        self.white_bishops: Bitboard = EMPTY_BITBOARD
+        self.white_rooks: Bitboard = EMPTY_BITBOARD
+        self.white_queens: Bitboard = EMPTY_BITBOARD
+        self.white_kings: Bitboard = EMPTY_BITBOARD
+        self.black_pawns: Bitboard = EMPTY_BITBOARD
+        self.black_knights: Bitboard = EMPTY_BITBOARD
+        self.black_bishops: Bitboard = EMPTY_BITBOARD
+        self.black_rooks: Bitboard = EMPTY_BITBOARD
+        self.black_queens: Bitboard = EMPTY_BITBOARD
+        self.black_kings: Bitboard = EMPTY_BITBOARD
+
+        for square in range(64):
+                piece = self.board.get(square)
                 if piece != EMPTY:
-                    if get_colour(piece) == WHITE:
-                        self.white_pieces.append((col,row))
-                    elif get_colour(piece) == BLACK:
-                        self.black_pieces.append((col,row))
-                    else:
-                        raise ValueError("Piece has invalid colour")
+                    self.set_piece(square, piece)
+
+        self.knight_moves: list[Bitboard] = self.get_knight_moves()
+        self.king_moves: list[Bitboard] = self.get_king_moves()
+        self.pawn_pushes_white: list[int] = self.get_white_pawn_pushes() #list of squares
+        self.pawn_pushes_black: list[int] = self.get_black_pawn_pushes() #list of squares
+        self.pawn_double_pushes_white: list[int] = self.get_white_double_pawn_pushes()
+        self.pawn_double_pushes_black: list[int] = self.get_black_double_pawn_pushes()
+        self.pawn_attacks_white: list[Bitboard] = self.get_white_pawn_attacks()
+        self.pawn_attacks_black: list[Bitboard] = self.get_black_pawn_attacks()
+        self.bishop_rays: list[list[Ray]] = self.get_bishop_rays()
+        self.rook_rays: list[list[Ray]] = self.get_rook_rays()
+        self.queen_rays: list[list[Ray]] = [self.rook_rays[square] + self.bishop_rays[square] for square in range(64)]
+
+    def set_bitboards(self):
+        self.white_pieces = (self.white_pawns | self.white_bishops
+        | self.white_knights | self.white_rooks | self.white_kings)
+        self.black_pieces = (self.black_pawns | self.black_bishops
+        | self.black_knights | self.black_rooks | self.black_kings)
+        self.pieces = self.white_pieces | self.black_pieces
+
+    def get_knight_moves(self):
+        knight_moves = [EMPTY_BITBOARD] * 64
+        for square in range(64):
+            attacks = EMPTY_BITBOARD
+            row, col = divmod(square, 8)
+            for drow, drcol in [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (2, -1), (2, 1), (1, -2), (1, 2)]:
+                r, c = row + drow, col + drcol
+                if 0 <= r < 8 and 0 <= c < 8:
+                    attacks |= 1 << (r*8 + c)
+            knight_moves[square] = attacks
+        return knight_moves
+
+    def get_king_moves(self):
+        king_moves = [EMPTY_BITBOARD] * 64
+        for square in range(64):
+            attacks = EMPTY_BITBOARD
+            row, col = divmod(square, 8)
+            for drow, drcol in [(-1, 1), (0, 1), (1, 1), (-1, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]:
+                r, c = row + drow, col + drcol 
+                if 0 <= r < 8 and 0 <= c < 8:
+                    attacks |= 1 << (r*8 + c)
+            king_moves[square] = attacks
+        return king_moves
+
+    def get_white_pawn_attacks(self):
+        pawn_moves = [EMPTY_BITBOARD] * 64
+        for square in range(64):
+            attacks = EMPTY_BITBOARD
+            row, col = divmod(square, 8)
+
+            if row > 0 and col < 7:
+                attacks |= 1 << ((row-1)*8 + (col+1))
+            if row > 0 and col > 0:
+                attacks |= 1 << ((row-1)*8 + (col-1))
+
+            pawn_moves[square] = attacks
+        return pawn_moves
+    
+    def get_black_pawn_attacks(self):
+        pawn_moves = [EMPTY_BITBOARD] * 64
+        for square in range(64):
+            attacks = EMPTY_BITBOARD
+            row, col = divmod(square, 8)
+
+            if row < 7 and col < 7:
+                attacks |= 1 << ((row+1)*8 + (col+1))
+            if row < 7 and col > 0:
+                attacks |= 1 << ((row+1)*8 + (col-1))
+
+            pawn_moves[square] = attacks
+        return pawn_moves
+
+    def get_white_pawn_pushes(self):
+        moves = [-1] * 64
+        for square in range(64):
+            row, col = divmod(square, 8)
+            if row > 0:
+                moves[square] = (row-1)*8 + col
+        return moves
+
+    def get_black_pawn_pushes(self):
+        moves = [-1] * 64
+        for square in range(64):
+            row, col = divmod(square, 8)
+            if row < 7:
+                moves[square] = (row+1)*8 + col
+        return moves
+
+    def get_white_double_pawn_pushes(self):
+        moves = [-1] * 64
+        for square in range(64):
+            row, col = divmod(square, 8)
+            if row == 6:
+                moves[square] = (row-2)*8 + col
+        return moves
+
+    def get_black_double_pawn_pushes(self):
+        moves = [-1] * 64
+        for square in range(64):
+            row, col = divmod(square, 8)
+            if row == 1:
+                moves[square] = (row+2)*8 + col
+        return moves
+
+
+    def set_piece(self, square: int, piece: int):
+        if piece == EMPTY:
+            return
+        colour = get_colour(piece)
+        piece_type = strip_piece(piece)
+        place = 1 << square
+        if colour == WHITE:
+            self.white_pieces |= place
+
+            if piece_type == PAWN:
+                self.white_pawns |= place 
+            elif piece_type == BISHOP:
+                self.white_bishops |= place 
+            elif piece_type == KNIGHT:
+                self.white_knights |= place
+            elif piece_type == ROOK:
+                self.white_rooks |= place 
+            elif piece_type == QUEEN:
+                self.white_queens |= place
+            else:
+                self.white_kings |= place
+        else:
+            self.black_pieces |= place
+            if piece_type == PAWN:
+                self.black_pawns |= place 
+            elif piece_type == BISHOP:
+                self.black_bishops |= place 
+            elif piece_type == KNIGHT:
+                self.black_knights |= place
+            elif piece_type == ROOK:
+                self.black_rooks |= place 
+            elif piece_type == QUEEN:
+                self.black_queens |= place
+            else:
+                self.black_kings |= place
+
+
+    def bb_iterate(self, bb: Bitboard):
+        while bb:
+            sq = (bb & -bb).bit_length() - 1 # finds the lsb set to 1
+            yield sq
+            bb &= bb - 1 # clear that bit
 
 
     def __str__(self):
@@ -68,16 +224,30 @@ class Game():
         ans += "Castling: \n"
         for castle in castle_strs:
             ans += castle + '\n'
-        ep = '-' if self.ep_target is None else coordinate_to_square(self.ep_target)
+        ep = '-' if self.ep_target is None else divmod(self.ep_target, 8)
         ans += f"ep target square: {ep}\n"
         ans += f"moves til 50 move rule: {self.halfs}\n"
         ans += f"move: {self.fulls}\n"
+
+        
+        print("WHITE PIECES\n ", print_bit_board(self.white_pieces))
+        print("WHITE PAWNS\n ", print_bit_board(self.white_pawns))
+        print("WHITE BISHOPS\n ", print_bit_board(self.white_bishops))
+        print("WHITE KNIGHTS\n ", print_bit_board(self.white_knights))
+        print("WHITE ROOKS\n ", print_bit_board(self.white_rooks))
+        print("WHITE QUEENS\n ", print_bit_board(self.white_queens))
+        print("WHITE KING\n ", print_bit_board(self.white_kings))
+        print("black PIECES\n ", print_bit_board(self.black_pieces))
+        print("black PAWNS\n ", print_bit_board(self.black_pawns))
+        print("black BISHOPS\n ", print_bit_board(self.black_bishops))
+        print("black KNIGHTS\n ", print_bit_board(self.black_knights))
+        print("black ROOKS\n ", print_bit_board(self.black_rooks))
+        print("black QUEENS\n ", print_bit_board(self.black_queens))
+        print("black KING\n ", print_bit_board(self.black_kings))
         return ans
 
     def __eq__(self, other):
         return (self.castling == other.castling
-                and self.black_king_pos == other.black_king_pos
-                and self.white_king_pos == other.white_king_pos
                 and self.white_pieces == other.white_pieces
                 and self.black_pieces == other.black_pieces
                 and self.ep_target == other.ep_target
@@ -86,22 +256,100 @@ class Game():
                 and self.board == other.board
                 and self.turn == other.turn)
 
-    def show_piece_positions(self):
-        """print every position that is said to hold a piece"""
-        print("White pieces")
-        for pos in self.white_pieces:
-            print(get_piece_name(self.get_square(pos)))
-        print("black pieces")
-        for pos in self.black_pieces:
-            print(get_piece_name(self.get_square(pos)))
+    def get_rook_rays(self) -> List[List[List[int]]]:
+        rook_rays = [[] for _ in range(64)]
+        for square in range(64):
+            row, col = divmod(square, 8)
+
+            ray = []
+            for r in range(row-1, -1, -1):
+                ray.append(r*8 + col)
+            rook_rays[square].append(ray)
+
+            ray = []
+            for r in range(row+1, 8):
+                ray.append(r*8 + col)
+            rook_rays[square].append(ray)
+
+            ray = []
+            for c in range(col-1, -1, -1):
+                ray.append(row*8 + c)
+            rook_rays[square].append(ray)
+
+            ray = []
+            for c in range(col+1, 8):
+                ray.append(row*8 + c)
+            rook_rays[square].append(ray)
+
+        return rook_rays
+    
+    def get_bishop_rays(self) -> List[List[List[int]]]:
+        bishop_rays = [[] for _ in range(64)]
+    
+        for square in range(64):
+            row, col = divmod(square, 8)
+
+            #NE
+            ray = []
+            r, c = row + 1, col + 1
+            while (r < 8 and c < 8):
+                ray.append(r*8 + c)
+                r += 1 
+                c += 1
+            bishop_rays[square].append(ray)
+
+            
+            #SE
+            ray = []
+            r, c = row - 1, col + 1
+            while (r >= 0 and c < 8):
+                ray.append(r*8 + c)
+                r -= 1 
+                c += 1
+            bishop_rays[square].append(ray)
+            
+            #SW
+            ray = []
+            r, c = row - 1, col - 1
+            while (r >= 0 and c >= 0):
+                ray.append(r*8 + c)
+                r -= 1 
+                c -= 1
+            bishop_rays[square].append(ray)
+
+            #NW
+            ray = []
+            r, c = row + 1, col - 1
+            while (r < 8 and c >= 0):
+                ray.append(r*8 + c)
+                r += 1 
+                c -= 1
+            bishop_rays[square].append(ray)
+
+        return bishop_rays
+
+    def get_sliding_moves(self, square, rays):
+        moves = []
+        piece = self.get_square(square)
+        colour = get_colour(piece)
+        for ray in rays[square]:
+            for target in ray:
+                tp = self.get_square(target)
+                if tp == EMPTY:
+                    moves.append(target)
+                else:
+                    if get_colour(tp) != colour:
+                        moves.append(target)
+                    break
+        return moves
 
     def show_board(self):
-        """print the board"""
+        """print the board for text-based display"""
         ans = ""
         for row in range(8):
             row_string = f"{abs(row - 8)} |"
             for col in range(8):
-                square = self.board.get(col, row)
+                square = self.get_square(8*row + col)
                 if square == EMPTY:
                     row_string += " "
                 elif square is None:
@@ -114,37 +362,74 @@ class Game():
         return ans
 
 
-    def get_pieces(self):
+    def get_pieces(self) -> Bitboard:
         """Return the positions of every piece in the board who can move on this turn"""
         return self.black_pieces if self.turn == BLACK else self.white_pieces
 
 
-    def get_square(self, position: Coordinate) -> Piece:
-        """Return the piece at position, or None if no piece is at position"""
-        if out_of_bounds(position):
-            raise Exception("piece oob")
-        return self.board.get(position)
+    def get_square(self, position: int) -> int:
+        """Return the piece at position, or None if an out of bounds coordinate 
+        is provided"""
+        if not (1 << position) & (self.white_pieces | self.black_pieces):
+            return EMPTY
+        if (1 << position) & self.white_pieces:
+            if (1 << position) & (self.white_pawns):
+                return WHITE | PAWN
+            elif (1 << position) & (self.white_knights):
+                return WHITE | KNIGHT
+            elif (1 << position) & (self.white_bishops):
+                return WHITE | BISHOP
+            elif (1 << position) & (self.white_rooks):
+                return WHITE | ROOK
+            elif (1 << position) & (self.white_queens):
+                return WHITE | QUEEN
+            else:
+                return WHITE | KING
+        else:
+            if (1 << position) & (self.black_pawns):
+                return BLACK | PAWN
+            elif (1 << position) & (self.black_knights):
+                return BLACK | KNIGHT
+            elif (1 << position) & (self.black_bishops):
+                return BLACK | BISHOP
+            elif (1 << position) & (self.black_rooks):
+                return BLACK | ROOK
+            elif (1 << position) & (self.black_queens):
+                return BLACK | QUEEN
+            else:
+                return BLACK | KING
 
-    def replace_square(self, position: Coordinate, piece: Piece):
-        """replace the postiion in board with piece"""
-        if position in self.white_pieces:
-            self.white_pieces.remove(position)
-        elif position in self.black_pieces:
-            self.black_pieces.remove(position)
+    def get_colour(self, square: int):
+        if (1 << square) & self.white_pieces:
+            return WHITE
+        elif (1 << square) & self.black_pieces:
+            return BLACK
+        else:
+            return EMPTY
 
-        self.board.set(piece, position)
-        if piece == EMPTY:
-            return
+    def remove_piece(self, square: int):
+        place = 1 << square
 
-        if get_colour(piece) == WHITE:
-            self.white_pieces.append(position)
-        elif get_colour(piece) == BLACK:
-            self.black_pieces.append(position)
-    
-    def is_empty(self, position):
-        if self.get_square(position) == EMPTY:
-            return True
-        return False
+        #remove it from all
+        self.white_pieces &= ~place
+        self.black_pieces &= ~place
+        self.white_pawns &= ~place 
+        self.black_pawns &= ~place 
+        self.white_bishops &= ~place 
+        self.black_bishops &= ~place 
+        self.white_knights &= ~place
+        self.black_knights &= ~place
+        self.white_rooks &= ~place 
+        self.black_rooks &= ~place 
+        self.white_queens &= ~place
+        self.black_queens &= ~place
+        self.white_kings &= ~place
+        self.black_kings &= ~place
+
+
+    def replace_square(self, position: int, piece: int):
+        """replace the position in board with piece"""
+        self.set_piece(position, piece)
 
     def change_turn(self):
         """Swap Turns"""
@@ -152,718 +437,533 @@ class Game():
 
     def right_to_castle(self, pos, new_pos):
         """checks if we have the right to peform the particular castling move"""
-        piece = self.get_square(pos)
-        if not ((piece == WHITE_KING and pos == WHITE_KING_START) or
-                (piece == BLACK_KING and pos == BLACK_KING_START)):
+        bit = 1 << pos
+        if not bit & (self.black_kings | self.white_kings):
             return False
-        diff = tuple_diff(pos, new_pos)
-        if diff == (2,0):
-            castle = WHITE_K_CASTLE if get_colour(piece) == WHITE else BLACK_K_CASTLE
-        elif diff == (-2,0):
-            castle = WHITE_Q_CASTLE if get_colour(piece) == WHITE else BLACK_Q_CASTLE
+        colour = self.get_colour(pos)
+        #it is a king
+        if not ((colour == WHITE and pos == WHITE_KING_START) or
+                (colour == BLACK and pos == BLACK_KING_START)):
+            return False
+        diff = new_pos - pos
+        if diff == 2:
+            castle = WHITE_K_CASTLE if colour == WHITE else BLACK_K_CASTLE
+        elif diff == -2:
+            castle = WHITE_Q_CASTLE if colour == WHITE else BLACK_Q_CASTLE
         else:
             return False
         return self.castling & castle
 
     def update_castle_rights(self, pos):
         """Based on the move update the castling rights"""
-        piece = self.get_square(pos)
-        if strip_piece(piece) == ROOK:
-            if get_colour(piece) == WHITE:
-                if pos == (7,7):
+        colour = self.get_colour(pos)
+        bit = 1 << pos
+        if bit & (self.black_rooks | self.white_rooks):
+            if colour == WHITE:
+                if pos == 63:
                     castle = WHITE_K_CASTLE
-                elif pos == (0,7):
+                elif pos == 56:
                     castle = WHITE_Q_CASTLE
                 else:
                     return
-            elif get_colour(piece) == BLACK:
-                if pos == (0,0):
+            elif colour == BLACK:
+                if pos == 0:
                     castle = BLACK_Q_CASTLE
-                elif pos == (7,0):
+                elif pos == 7:
                     castle = BLACK_K_CASTLE
                 else:
                     return
+            else:
+                raise ValueError("invalid colour")
             self.castling &= (15 - castle)
-        elif strip_piece(piece) == KING:
-            if get_colour(piece) == WHITE:
-                self.castling &= BLACK_K_CASTLE | BLACK_Q_CASTLE
-            elif get_colour(piece) == BLACK:
-                self.castling &= WHITE_K_CASTLE | WHITE_Q_CASTLE
-
-    def correct_move(self, pos, new_pos):
-        """A move is considered correct it can be performed on an empty 8x8
-        board. Returns True if the move is correct and False otherwise"""
-
-        piece = self.get_square(pos)
-        new_square = self.get_square(new_pos)
-
-
-        if piece == EMPTY:
-            return False
-
-        if strip_piece(piece) == PAWN:
-            return self.correct_pawn(pos, new_pos)
-
-        elif strip_piece(piece) == KNIGHT:
-            return self.correct_knight(pos, new_pos)
-
-        elif strip_piece(piece) == BISHOP:
-            return self.correct_bishop(pos, new_pos)
-
-        elif strip_piece(piece) == ROOK:
-            return self.correct_rook(pos, new_pos)
-
-        elif strip_piece(piece) == QUEEN:
-            return self.correct_queen(pos, new_pos)
-
-        elif strip_piece(piece) == KING:
-            return self.correct_king(pos, new_pos)
-
-    def correct_pawn(self, pos: Coordinate, new_pos: Coordinate):
-        """correct pawn move from pos to new_pos"""
-        piece = self.get_square(pos)
-        diff = tuple_diff(pos, new_pos)
-
-
-        #Pawns by nature can move in the following ways:
-        # 1. One space forward
-        # 2. One space forward diagonally
-        # 3. Two spaces forward (given it is on the starting square)
-        #we check these are first satisfied
-        if get_colour(piece) == WHITE:
-            if diff[1] == -1:
-                if diff[0] not in [-1, 0, 1]:
-                    return False
-            elif diff[1] == -2:
-                if pos[1] != 6: #i.e not on starting square
-                    return False
-            else:
-                return False
-        elif get_colour(piece) == BLACK:
-            if diff[1] == 1:
-                if diff[0] not in [-1, 0, 1]:
-                    return False
-            elif diff[1] == 2:
-                if pos[1] != 1:
-                    return False
-            else:
-                return False
-        else:
-            raise ValueError(f"malformed piece {piece} at {pos}")
-
-        return True
-
-    def correct_knight(self, pos, new_pos):
-        """correct knight move from pos to new_pos"""
-        diff = tuple_diff(pos, new_pos)
-        return (abs(diff[0]) == 1 and abs(diff[1]) == 2) or (abs(diff[0]) == 2 and abs(diff[1]) == 1)
-
-    def correct_bishop(self, pos, new_pos):
-        """correct bishop move from pos to new_pos"""
-        delta = tuple_diff(pos, new_pos)
-        return abs(delta[0]) ==  abs(delta[1])
-
-    def correct_rook(self, pos, new_pos):
-        """correct rook move from pos to new_pos"""
-        delta = get_delta(pos, new_pos)
-        return (abs(delta[0]) + abs(delta[1]) == 1)
-
-    def correct_queen(self, pos, new_pos):
-        """correct queen move from pos to new_pos"""
-        return self.correct_rook(pos, new_pos) or self.correct_bishop(pos, new_pos)
-
-    def correct_king(self, pos, new_pos):
-        """correct king move from pos to new_pos"""
-        delta = tuple_diff(pos, new_pos)
-        return delta in [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)] + [(2, 0), (-2, 0)]
-
-    def valid_move(self, pos, new_pos):
-        """A move is considered valid if it is both correct and can be
-        performed without colliding with another piece. Returns True if the
-        move is valid and False otherwise"""
-
-        piece = self.get_square(pos)
-        piece = strip_piece(piece)
-        if not self.correct_move(pos, new_pos):
-            return False
-        if piece in SLIDING_PIECES:
-            return self.check_slide(pos, new_pos)
-        if piece == PAWN:
-            return self.valid_pawn(pos, new_pos)
-        return True
-
-    def check_slide(self, pos: Coordinate, new_pos: Coordinate):
-        """Checks that a sliding piece can move from pos to new_pos without
-        colliding with another piece."""
-        piece = self.get_square(pos)
-        if strip_piece(piece) not in [ROOK, BISHOP, QUEEN]:
-            return True
-
-        delta = get_delta(pos, new_pos)
-        ghost_pos = tuple_add(pos, delta)
-        while ghost_pos != new_pos:
-            square = self.get_square(ghost_pos)
-            if square != EMPTY:
-                return False
-            ghost_pos = tuple_add(ghost_pos, delta)
-        return True
-
-    def valid_pawn(self, pos: Coordinate, new_pos: Coordinate):
-        """checks the validity of the pawn move"""
-
-        diff = tuple_diff(pos, new_pos)
-        new_square = self.get_square(new_pos)
-        delta = get_delta(pos, new_pos)
-
-        #The following rules apply:
-        # 1. If a pawn moves forward diagonally, it must be capturing a piece
-        # 2. If a pawn moves forward straight, there must be no piece in front of it
-        if (diff[0] == 0):
-            if new_square != EMPTY:
-                return False
-            #check inbetween square
-            if (abs(diff[1]) == 2):
-                inbetween = -1 if diff[1] == -2 else 1
-                if self.board.get((pos[0], pos[1] + inbetween)) != EMPTY:
-                    return False
-        if (delta[0] != 0 and new_square == EMPTY):
-            return self.is_valid_enpessant(pos, new_pos) 
-
-        return True
-
-    def is_valid_enpessant(self, pos, new_pos):
-        """Return True if we can capture enpessant"""
-        delta = get_delta(pos, new_pos)
-        piece = self.get_square(pos)
-        #piece next to us (opposite colour)
-        target_position = tuple_add(pos, (delta[0], 0))
-        target_piece = self.get_square(target_position)
-        if strip_piece(target_piece) != PAWN or get_colour(target_piece) == get_colour(piece):
-            return False
-        #piece has just moved.
-        if self.ep_target != target_position:
-            return False
-        return True
-
-    def is_enpessant(self, pos, new_pos):
-        """Return True if the move is an enpessant"""
-        piece = self.get_square(pos)
-        delta = get_delta(pos, new_pos)
-        return strip_piece(piece) == PAWN and abs(delta[0]) == 1 and self.get_square(new_pos) == EMPTY
-        
-    def is_castle(self, pos, new_pos):
-        """Return True if the move is a castle"""
-        piece = self.get_square(pos)
-        return (strip_piece(piece) == KING and tuple_diff(pos, new_pos) in [(2,0), (-2,0)])
-
-    def king_castle_valid(self, king, pos, new_pos):
-        """Return True if this king can move from pos to new_pos, in a way that
-        satisfies the rules of castling."""
-        return (not self.in_check(get_colour(king))
-                and self.get_square(new_pos) == EMPTY
-                and self.valid_move(pos, new_pos)
-                and self.right_to_castle(pos, new_pos))
-
-    def is_valid_castle(self, king, pos, new_pos):
-        """Return True if we can castle from pos to new_pos"""
-        colour = get_colour(king)
-        delta = get_delta(pos, new_pos)
-        
-        if not self.right_to_castle(pos, new_pos):
-            return False
-
-        if self.in_check(get_colour(king)):
-            return False
-
-        target = pos
-        while target != new_pos:
-            target = tuple_add(target, delta)
-            if (self.is_attacked(target, colour)
-                or self.get_square(target) != EMPTY):
-                return False
-
-        rook_pos = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
-        rook = self.get_square(rook_pos)
-        if rook == EMPTY or get_colour(rook) != get_colour(king):
-            return False
-
-        return True
-
-    def is_attacked(self, pos, colour_attacked=None):
-        """check if the position can be attacked by the player opposite to the current turn"""
-        
-        if colour_attacked is None:
-            colour = BLACK if get_colour(self.get_square(pos)) == WHITE else WHITE
-        else:
-            colour = BLACK if colour_attacked == WHITE else WHITE
-
-        for attacker in self.white_pieces if colour == WHITE else self.black_pieces:
-            if self.valid_move(attacker, pos):
-                return True
-        return False
-
-    def in_check(self, player):
-        """return True if the player is in check, otherwise False
-
-        Where player is either 'WHITE' or 'BLACK' """
-
-        king_pos = self.black_king_pos if player == BLACK else self.white_king_pos
-        return self.is_attacked(king_pos, player)
-
-    def generate_blockable_squares(self, target: Coordinate) -> BitBoard:
-        """return the bitboard representing the squares that can
-        be visited to BLOCK a check. If None is returned, there is a double
-        check, meaning no block is possible"""
-        dest = self.get_square(target)
-        target_colour = get_colour(dest)
-        color = BLACK if target_colour == WHITE else WHITE
-
-
-        piece_coords = None
-        for row in range(8):
-            for col in range(8):
-                pos = (col, row)
-                piece = self.get_square(pos)
-                if color != get_colour(piece):
-                    continue
-                if self.valid_move(pos, target):
-                    if piece_coords is None:
-                        piece_coords = pos
-                    else:
-                        return 0
-        if piece_coords is None:
-            return 0 #empty bit_board
-        piece = self.get_square(piece_coords)
-        bb = 0
-        if strip_piece(piece) == KNIGHT or strip_piece(piece) == PAWN:
-            return set_bit_board(bb, piece_coords)
-        if strip_piece(piece) in [QUEEN, BISHOP, ROOK]:
-            delta = get_delta(piece_coords, target)
-            while piece_coords != target:
-                bb = set_bit_board(bb, piece_coords)
-                piece_coords = tuple_add(piece_coords, delta)
-            return bb
-        else:
-            raise Exception("malformed piece")
-
-    def on_same_line(self, piece_pos, other):
-        """return true if the two pieces are on the same line"""
-        if piece_pos[0] == other[0]:
-            return True
-        if piece_pos[1] == other[1]:
-            return True
-        return abs(piece_pos[0] - other[0]) == abs(piece_pos[1] - other[1])
-
-
-
-    def is_pinned(self, piece, position, new_pos):
-        """return True if the piece at position is pinned to its own king, False otherwise"""
-        if piece == EMPTY:
-            raise Exception("check xray on empty square")
-        colour = get_colour(piece)
-        king = self.white_king_pos if colour == WHITE else self.black_king_pos
-        king_col, king_row = king
-        col, row = position
-        if king_col == col:
-            direction = (0,-1) if row - king_row < 0 else (0,1)
-        elif king_row == row:
-            direction = (-1,0) if col - king_col < 0 else (1,0)
-        elif abs(col - king_col) == abs(row - king_row):
-            direction = get_delta(king, position)
-        else:
-            return False
-        running_pos = king
-        running_pos = tuple_add(running_pos, direction)
-        while running_pos != position and not out_of_bounds(running_pos):
-            if self.get_square(running_pos) != EMPTY:
-                return False
-            running_pos = tuple_add(running_pos, direction)
-        running_pos = tuple_add(running_pos, direction)
-        while not out_of_bounds(running_pos):
-            square = self.get_square(running_pos)
-            if square != EMPTY:
-                if get_colour(square) != colour:
-                    return self.correct_move(running_pos, king) and running_pos != new_pos
-                else:
-                    return False
-            running_pos = tuple_add(running_pos, direction)
-        return False
-
-
-
-    def get_xrays(self) -> list[BitBoard]:
-        """Returns a list of bitboards. Each bitboard represents a line in the
-        board (an xray). An xray occurs if an opposition piece has a correct
-        move to the target piece, and exactly one opposition piece stands in 
-        its path."""
-        target = self.black_king_pos if self.turn == BLACK else self.white_king_pos
-        dest = self.get_square(target)
-        target_colour = get_colour(dest)
-        pieces = self.white_pieces if target_colour == BLACK else self.black_pieces
-        bbs = []
-        for pos in pieces:
-            piece = self.get_square(pos)
-            if strip_piece(piece) in SLIDING_PIECES and self.correct_move(pos, target):
-                delta = get_delta(pos, target)
-                bb = set_bit_board(EMPTY, pos) #initalise
-                piece_count = 0
-
-                pos = tuple_add(pos, delta)
-                while pos != target:
-                    inb_square = self.get_square(pos)
-                    if inb_square != EMPTY:
-                        if get_colour(inb_square) == target_colour and piece_count == 0:
-                            piece_count += 1
-                        else:
-                            bb = EMPTY
-                            break
-                    bb = set_bit_board(bb, pos)
-                    pos = tuple_add(pos, delta)
-                if bb != EMPTY:
-                    bbs.append(bb)
-        return bbs
-
-    def legal_move(self, pos, new_pos, perft=None):
-        """Attempt to move the piece if legal"""
-        if out_of_bounds(pos) or out_of_bounds(new_pos):
-            return False
-        piece = self.get_square(pos)
-        colour = get_colour(piece)
-        dest  = self.get_square(new_pos) #save this
-        king_pos = self.white_king_pos if self.turn == WHITE else self.black_king_pos
-
-        if not self.valid_move(pos, new_pos):
-            return False
-
-        if self.turn != colour:
-            return False
-
-        if dest != EMPTY and get_colour(dest) == colour:
-            return False
-        
-        if strip_piece(piece) == KING and self.is_attacked(new_pos, colour):
-            return False
-
-        if self.is_castle(pos, new_pos):
-            return self.is_valid_castle(piece, pos, new_pos)
-
-        if self.is_enpessant(pos, new_pos):
-            return self.is_valid_enpessant(pos, new_pos)
-
-        cur_in_check = perft if perft is not None else self.in_check(self.turn)
-
-        if not cur_in_check and not (strip_piece(piece) == KING) and not self.on_same_line(pos, king_pos):
-            return True
-
-
-        if cur_in_check:
-            #option 1: move the king out of the way of attack
-            if strip_piece(piece) == KING:
-                if not (self.is_castle(pos, new_pos) or self.is_attacked(new_pos,colour)):
-                    return True
-                return False
-            #option 2: block the attacking piece with one of our own
-            bb_blockables = self.generate_blockable_squares(king_pos)
-            if not check_bit_board(bb_blockables, new_pos) and not self.is_pinned(piece, pos, new_pos):
-                return False
-            return True  
-
-        #ensure we are not revealing a check
-        if self.on_same_line(pos, king_pos) and self.is_pinned(piece, pos, new_pos):
-            return False
-
-        return True
-    def change_piece_position(self, pos, new_pos, promotion=None):
-        """move the piece w/o changing the turn"""
-
-        piece = self.get_square(pos)
-        self.replace_square(pos, EMPTY)
-        if promotion is not None:
-            piece = self.get_promotion_piece(piece, promotion)
-        self.replace_square(new_pos, piece)
-        if piece == WHITE_KING:
-            self.white_king_pos = new_pos
-        elif piece == BLACK_KING:
-            self.black_king_pos = new_pos
-
-
-    def move_piece(self, moveset):
-        """perform the moveset (assuming legality), updating the game state accordingly"""
-
-        pos, new_pos, promotion = moveset
-        #save these for undoing a move later
-        dest = self.get_square(new_pos)
-        old_ep = self.ep_target
-        old_cr = self.castling
-        
-        if self.is_castle(pos, new_pos):
-            cur_rook = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
-            target_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
-            self.change_piece_position(cur_rook, target_rook)
-
-        if self.is_enpessant(pos, new_pos):
-            #capture the piece
-            op_position = tuple_add(pos, (get_delta(pos, new_pos)[0], 0))
-            self.replace_square(op_position, EMPTY)
-
-        if self.is_double_pawn_move(pos, new_pos):
-            self.ep_target = new_pos
-        else:
-            self.ep_target = None
-
-        if strip_piece(self.get_square(pos)) in [KING, ROOK]:
-            self.update_castle_rights(pos)
-
-        self.change_piece_position(pos, new_pos, promotion)
-        self.change_turn()
-        return dest, old_ep, old_cr 
-
-    def unmove_piece(self, moveset, old_new_pos, old_ep, old_cr):
-        """reverse the most recent move"""
-        pos, new_pos, promotion = moveset
-        piece = self.get_square(new_pos)
-
-
-        if strip_piece(piece) == KING and tuple_diff(pos, new_pos) in [(2,0), (-2,0)]:
-            cur_rook = (3, pos[1]) if new_pos[0] == 2 else (5, pos[1])
-            old_rook = (0, pos[1]) if new_pos[0] == 2 else (7, pos[1])
-            self.replace_square(old_rook, self.get_square(cur_rook))
-            self.replace_square(cur_rook, EMPTY)
-
-        if old_ep is not None and self.get_square(old_ep) == EMPTY: #we just did an enpessant
-            colour = WHITE if get_colour(piece) == BLACK else BLACK
-            self.replace_square(old_ep, PAWN | colour)
-
-        self.ep_target = old_ep
-        self.castling = old_cr
-
-        if promotion is not None:
-            colour = get_colour(piece)
-            self.replace_square(pos, PAWN | colour)
-        else:
-            self.change_piece_position(new_pos, pos)
-        self.replace_square(new_pos, old_new_pos)
-        if piece == BLACK_KING:
-            self.black_king_pos = pos
-        if piece == WHITE_KING:
-            self.white_king_pos = pos
-        self.change_turn()
-        
-    def move_if_legal(self, moveset):
-        """if the move is legal, move the piece, else return None"""
-        pos, new_pos, prom = moveset
-        if self.legal_move(pos, new_pos):
-            return self.move_piece(moveset)
-        return None
-
-
-    def is_double_pawn_move(self, pos, new_pos):
-        """Return true if this is a pawn moving two squares"""
-        piece = self.get_square(pos)
-        return strip_piece(piece) == PAWN and abs(pos[1] - new_pos[1]) == 2
-
-    def get_promotion_piece(self, piece, promotion):
-        """Return a new piece of type promotion w/ piece's attributes
-
-        Assuming promotion in ['B', 'N', 'R', 'Q']"""
-        colour = get_colour(piece)
-        promotions = {'B': BISHOP | colour, 'N' : KNIGHT | colour,
-                      'R' : ROOK | colour, 'Q': QUEEN | colour}
-        return promotions[promotion]
-        
-    
-    def in_checkmate(self, player):
-        """Return True if the player is in checkmate, otherwise False"""
-        for pos, target, _ in self.generate_all_legal_moves():
-            piece = self.get_square(pos)
-            if get_colour(piece) == player and not self.is_castle(pos, target):
-                return False
-        return True
-
-
-    def white_pawn_deltas(self, position: Coordinate) -> list[Coordinate]:
-        return [tuple_add(position, delta) for delta in [(-1, -1), (0,-1), (0,-2), (1,-1)]]
-
-    def black_pawn_deltas(self, position: Coordinate) -> list[Coordinate]:
-        return [tuple_add(position, delta) for delta in [(-1, 1), (0,1), (0,2), (1,1)]]
-
-    def knight_deltas(self, position: Coordinate) -> list[Coordinate]:
-        deltas = [-2, -1, 1, 2]
-        return [tuple_add(position, (x,y)) for x in deltas
-                                                for y in deltas
-                                                if abs(x) != abs(y)]
-    def bishop_deltas(self, position: Coordinate) -> list[Coordinate]:
-        deltas =  [(1,1), (1,-1), (-1, 1), (-1,-1)]
-        return self.get_sliding_deltas(position, deltas)
-
-    def rook_deltas(self, position: Coordinate) -> list[Coordinate]:
-        deltas = [(1,0), (0,1), (-1,0), (0,-1)]
-        return self.get_sliding_deltas(position, deltas)
-
-    def king_deltas(self, position) -> list[Coordinate]:
-        deltas = [(x,y) for x in [1, 0, -1] for y in [1, 0, -1] if not (x==0 and y==0)]
-        deltas = deltas + [(-2, 0), (2,0)] #castling is a king move
-        return [tuple_add(position, delta) for delta in deltas]
-
-    def get_sliding_deltas(self, position: Coordinate, deltas: list[Coordinate]):
+        elif bit & (self.black_kings | self.white_kings):
+            if colour == WHITE:
+                self.castling &= ~(WHITE_K_CASTLE | WHITE_Q_CASTLE)
+            elif colour == BLACK:
+                self.castling &= ~(BLACK_K_CASTLE | BLACK_Q_CASTLE)
+
+
+#PSEUDO LEGAL MOVE GENERATION ################################################
+    def generate_white_pawn_moves(self):
         moves = []
-        for delta in deltas:
-            move = tuple_add(position, delta)
-            while not out_of_bounds(move):
-                if self.get_square(move) != EMPTY:
-                    moves.append(move)
-                    break
-                moves.append(move)
-                move = tuple_add(move, delta)
-            move = position
+        occupied = self.white_pieces | self.black_pieces
+        opponents = self.black_pieces
+
+        for square in self.bb_iterate(self.white_pawns):
+            target = self.pawn_pushes_white[square]
+            if target != -1 and not (occupied & (1 << target)):
+                targ_row = target // 8
+                if targ_row == 0:
+                    for promotion in [BISHOP, KNIGHT, ROOK, QUEEN]:
+                        moves.append((square, target, promotion | WHITE))
+                else:
+                    moves.append((square, target, None))
+                    dtarget = self.pawn_double_pushes_white[square]
+                    if dtarget != -1 and not (occupied & (1 << dtarget)):
+                        moves.append((square, dtarget, None))
+
+            #captures 
+            caps = self.pawn_attacks_white[square] & opponents 
+            for target in self.bb_iterate(caps):
+                targ_row = target // 8
+                if targ_row == 0:
+                    for promotion in [BISHOP, KNIGHT, ROOK, QUEEN]:
+                        moves.append((square, target, promotion | WHITE))
+                else:
+                    moves.append((square, target, None))
+
+            #enpessant
+            if self.ep_target is not None:
+                ep_bit = 1 << self.ep_target
+                if (self.pawn_attacks_white[square] & ep_bit) != 0:
+                    moves.append((square, self.ep_target, None))
+        return moves
+
+    def generate_black_pawn_moves(self):
+        moves = []
+        occupied = self.white_pieces | self.black_pieces
+        opponents = self.white_pieces
+
+        for square in self.bb_iterate(self.black_pawns):
+            target = self.pawn_pushes_black[square]
+            if target != -1 and not (occupied & (1 << target)):
+                targ_row = target // 8
+                if targ_row == 7:
+                    for promotion in [BISHOP, KNIGHT, ROOK, QUEEN]:
+                        moves.append((square, target, promotion | BLACK))
+                else:
+                    moves.append((square, target, None))
+                    dtarget = self.pawn_double_pushes_black[square]
+                    if dtarget != -1 and not (occupied & (1 << dtarget)):
+                        moves.append((square, dtarget, None))
+
+            #captures 
+            caps = self.pawn_attacks_black[square] & opponents
+            for target in self.bb_iterate(caps):
+                targ_row = target // 8
+                if targ_row == 7:
+                    for promotion in [BISHOP, KNIGHT, ROOK, QUEEN]:
+                        moves.append((square, target, promotion | BLACK))
+                else:
+                    moves.append((square, target, None))
+
+            #enpessant
+            if self.ep_target is not None:
+                ep_bit = 1 << self.ep_target
+                if (self.pawn_attacks_black[square] & ep_bit) != 0:
+                    moves.append((square, self.ep_target, None))
         return moves
 
 
-    def generate_moves(self, position: Coordinate) -> list[Coordinate]:
-        """generate possible moves for the piece at position."""
-        piece = self.get_square(position)
-        if piece == EMPTY:
-            return []
+    def generate_knight_moves(self, colour):
+        moves = []
+        my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+        knights = self.white_knights if colour == WHITE else self.black_knights
+        for square in self.bb_iterate(knights):
+            targets = self.knight_moves[square] & ~my_bb #cancel out own squares
+            for target in self.bb_iterate(targets):
+                moves.append((square, target, None))
+        return moves
 
-        if piece == WHITE_PAWN:
-            ans = self.white_pawn_deltas(position)
-        elif piece == BLACK_PAWN:
-            ans =  self.black_pawn_deltas(position)
-        elif strip_piece(piece) == KNIGHT:
-            ans =  self.knight_deltas(position)
-        elif strip_piece(piece) == BISHOP:
-            ans = self.bishop_deltas(position)
-        elif strip_piece(piece) == ROOK:
-            ans = self.rook_deltas(position)
-        elif strip_piece(piece) == QUEEN:
-            ans = self.bishop_deltas(position) + self.rook_deltas(position)
-        elif strip_piece(piece) == KING:
-            ans =  self.king_deltas(position)
+    def generate_king_moves(self, colour):
+        moves = []
+        my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+        kings = self.white_kings if colour == WHITE else self.black_kings
+        for square in self.bb_iterate(kings):
+            targets = self.king_moves[square] & ~my_bb
+            for target in self.bb_iterate(targets):
+                moves.append((square, target, None))
+
+        return moves
+    
+    def generate_sliding_moves(self, square, rays, my_bb):
+        moves = []
+        occupied = self.black_pieces | self.white_pieces
+        for ray in rays[square]:
+            for target in ray:
+                bit = 1 << target
+                if (my_bb & bit) == 0: #if the square is not occupied by our own we can take
+                    moves.append((square, target, None))
+                if (occupied & bit): #if the square is non empty, we cannot go further
+                    break
+        return moves
+    
+    def generate_bishop_moves(self, colour):
+        moves = []
+        my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+        bishops = self.white_bishops if colour == WHITE else self.black_bishops
+        for square in self.bb_iterate(bishops):
+            moves.extend(self.generate_sliding_moves(square, self.bishop_rays, my_bb))
+        return moves
+    
+    def generate_rook_moves(self, colour):
+        moves = []
+        my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+        rooks = self.white_rooks if colour == WHITE else self.black_rooks
+        for square in self.bb_iterate(rooks):
+            moves.extend(self.generate_sliding_moves(square, self.rook_rays, my_bb))
+        return moves
+    
+    def generate_queen_moves(self, colour):
+        moves = []
+        my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+        queens = self.white_queens if colour == WHITE else self.black_queens
+        for square in self.bb_iterate(queens):
+            moves.extend(self.generate_sliding_moves(square, self.bishop_rays, my_bb))
+            moves.extend(self.generate_sliding_moves(square, self.rook_rays, my_bb))
+        return moves
+
+
+    def generate_castling_moves(self, colour):
+        moves = []
+        king_square = self.white_kings.bit_length() - 1 if colour == WHITE else self.black_kings.bit_length() - 1
+        row = 7 if colour == WHITE else 0
+        oposite_colour = WHITE if colour == BLACK else BLACK
+
+        # King-side castling
+        if self.right_to_castle(king_square, king_square + 2):
+            squares_between = [king_square + 1, king_square + 2]
+            if self.get_square(king_square + 3) == ROOK | colour and all(self.get_square(sq) == EMPTY for sq in squares_between):
+                if not any(self.is_square_attacked(sq, oposite_colour) for sq in [king_square, king_square + 1, king_square + 2]):
+                    moves.append((king_square, king_square + 2, None))
+
+        # Queen-side castling
+        if self.right_to_castle(king_square, king_square - 2):
+            squares_between = [king_square - 1, king_square - 2, king_square - 3]
+            if self.get_square(king_square - 4) == ROOK | colour and all(self.get_square(sq) == EMPTY for sq in squares_between):  # last square can hold rook
+                if not any(self.is_square_attacked(sq, oposite_colour) for sq in [king_square, king_square - 1, king_square - 2]):
+                    moves.append((king_square, king_square - 2, None))
+
+        return moves
+
+    def generate_all_moves(self, colour):
+        moves = []
+        if colour == WHITE:
+            moves.extend(self.generate_white_pawn_moves())
         else:
-            raise ValueError(f"invalid piece: {piece} at position {position}")
-        return [move for move in ans if not out_of_bounds(move)]
-    
+            moves.extend(self.generate_black_pawn_moves())
 
-    def generate_valid_moves(self, position: Coordinate):
-        return [move for move in self.generate_moves(position) if self.valid_move(position, move)]
-    
-    def generate_legal_moves(self, position: Coordinate) -> list[Moveset]:
-        """return a list of movesets, that is all the legal moves possible in
-        this board from the starting position"""
-        ans = []
-        piece = self.get_square(position)
-        append = ans.append
-        for move in self.generate_moves(position):
-            if not self.legal_move(position, move):
-                continue
-            if strip_piece(piece) == PAWN and move[1] == 0:
-                colour = get_colour(piece)
-                for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
-                    append((position, move, prom_piece | colour))
+        moves.extend(self.generate_bishop_moves(colour))
+        moves.extend(self.generate_knight_moves(colour))
+        moves.extend(self.generate_rook_moves(colour))
+        moves.extend(self.generate_queen_moves(colour))
+        moves.extend(self.generate_king_moves(colour))
+        moves.extend(self.generate_castling_moves(colour))
+
+        return moves
+
+    def is_square_attacked(self, square, opp_colour):
+
+        #pawn attacks
+        if opp_colour == WHITE:
+            if (self.pawn_attacks_black[square] & self.white_pawns) != 0:
+                return True
+        if opp_colour == BLACK:
+            if (self.pawn_attacks_white[square] & self.black_pawns) != 0:
+                return True
+
+        #knight attacks
+        if (self.knight_moves[square] & (self.white_knights if opp_colour == WHITE else self.black_knights)) != 0:
+            return True
+
+        #king attacks
+        if (self.king_moves[square] & (self.white_kings if opp_colour == WHITE else self.black_kings) != 0):
+            return True
+
+        occupied = self.white_pieces | self.black_pieces
+        #diagonal attacks
+        for ray in self.bishop_rays[square]:
+            for target in ray:
+                bit = 1 << target
+                if (occupied & bit):
+                    options = (self.white_bishops | self.white_queens) if opp_colour == WHITE else (self.black_bishops | self.black_queens)
+                    if (options & bit):
+                        return True
+                    break
+        #orthogonal attacks
+        for ray in self.rook_rays[square]:
+            for target in ray:
+                bit = 1 << target
+                if (occupied & bit):
+                    options = (self.white_rooks | self.white_queens) if opp_colour == WHITE else (self.black_rooks | self.black_queens)
+                    if (options & bit):
+                        return True
+                    break
+
+        return False
+
+    def move_piece(self, move):
+        """
+        Make the move and return a dictionary describing the previous state so
+        unmake_move can restore it exactly.
+        move: (start, end, promotion) where start/end are 0..63, promotion is piece-int or 'K_CASTLE'/'Q_CASTLE'/None
+        """
+        start, end, promotion = move
+        piece = self.get_square(start)
+
+        # Find if this move captures something normally on the target square
+        captured_piece = self.get_square(end)
+
+        # For en-passant captures the captured pawn sits on a different square
+        ep_capture_square = None
+        if strip_piece(piece) == PAWN and self.ep_target is not None and end == self.ep_target:
+            # This indicates an en-passant capture — the captured pawn is behind the ep target
+            cap_row = end // 8 + (1 if self.turn == WHITE else -1)
+            ep_capture_square = cap_row * 8 + (end % 8)
+            captured_piece = self.get_square(ep_capture_square)
+
+        old_state = {
+            'start': start,
+            'end': end,
+            'piece': piece,
+            'captured_piece': captured_piece,
+            'captured_square': ep_capture_square if ep_capture_square is not None else (end if captured_piece != EMPTY else None),
+            'castling': self.castling,
+            'ep_target': self.ep_target,
+            'halfs': self.halfs,
+            'fulls': self.fulls,
+            'turn': self.turn,
+            'promotion': promotion,
+            'castle' : None
+        }
+
+        # --- Update castling rights based on moving piece (and rook moves will also update when rooks move) ---
+        self.update_castle_rights(start)
+
+        # --- Remove captured piece (normal capture or en-passant) ---
+        if old_state['captured_square'] is not None:
+            self.remove_piece(old_state['captured_square'])
+
+        # --- Move piece ---
+        self.remove_piece(start)
+
+        # --- Handle promotions: promotion is passed as piece-int (e.g. QUEEN|WHITE) ---
+        if promotion and promotion in [BISHOP | self.turn, KNIGHT | self.turn, QUEEN | self.turn, ROOK | self.turn]:
+            # replace pawn at 'end' with promoted piece
+            self.set_piece(end, promotion)
+        else:
+            self.set_piece(end, piece)
+
+        # --- Handle castling rook moves if the move was a castling move flagged in promotion field ---
+        # (Your code used 'K_CASTLE'/'Q_CASTLE' in place of promotion for castling)
+        if strip_piece(piece) == KING and (end - start) == 2:
+            old_state['castle'] = 'K_CASTLE'
+            if self.turn == WHITE:
+                # White king-side: king from 4->6, rook from 7->5
+                self.replace_square(WHITE_KING_START + 1, ROOK | WHITE)
+                self.remove_piece(WHITE_KING_START + 3)
             else:
-                append((position, move, None))
-        return ans
+                # Black king-side: rook from 7->5 on row 0
+                self.replace_square(BLACK_KING_START + 1, ROOK | BLACK)
+                self.remove_piece(BLACK_KING_START + 3)
+        elif strip_piece(piece) == KING and (end - start) == -2:
+            old_state['castle'] = 'Q_CASTLE'
+            if self.turn == WHITE:
+                # White queen-side: rook from 0->3 (on rank 7: indices 56..63)
+                self.replace_square(WHITE_KING_START - 1, ROOK | WHITE)
+                self.remove_piece(WHITE_KING_START - 4)
+            else:
+                self.replace_square(BLACK_KING_START - 1, ROOK | BLACK)
+                self.remove_piece(BLACK_KING_START - 4)
 
-    def generate_attacking_moves(self, position: Coordinate) -> list[Coordinate]:
-        """generate all valid ATTACKING moves for the piece at position"""
-        piece = self.board.get(position)
-        if piece == EMPTY:
-            return []
-        if get_colour(piece) == self.turn:
-            return []
+        # --- Update en-passant target for next move ---
+        self.ep_target = None
+        if strip_piece(piece) == PAWN and abs(end - start) == 16:
+            # If double-pawn push, ep square is halfway
+            self.ep_target = (start + end) // 2
 
-        ans = []
-        append = ans.append
-        for target in self.white_pieces:
-            if self.valid_move(position, target) and position != target:
-                append((position, target))
-        for target in self.black_pieces:
-            if self.valid_move(position, target) and position != target:
-                append((position, target))
-        return ans
+        # Swap side to move
+        self.change_turn()
 
-    def generate_all_moves(self) -> list[Moveset]:
-        """generates every possible moveset in the board at this state"""
-        ans = []
-        append = ans.append
-        for pos in self.get_pieces():
-            piece = self.get_square(pos)
-            if piece == EMPTY:
-                raise Exception("piece is said to exist but has empty")
-            for move in self.generate_moves(pos):
-                if strip_piece(piece) == PAWN and move[1] == 0:
-                    colour = get_colour(piece)
-                    for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
-                        append((pos, move, prom_piece | colour))
-                else:
-                    append((pos, move, None))
-        return ans
+        return old_state
 
-    def generate_all_legal_moves(self, perft=False):
-        """generates a list of all moves that are strictly legal"""
-        ans = []
-        append = ans.append
-        for pos in self.get_pieces():
-            piece = self.get_square(pos)
-            for move in self.generate_moves(pos):
-                if not self.legal_move(pos, move, perft):
-                    continue
-                if strip_piece(piece) == PAWN and move[1] == 0:
-                    colour = get_colour(piece)
-                    for prom_piece in [BISHOP, KNIGHT, ROOK, QUEEN]:
-                        append((pos, move, prom_piece | colour))
-                else:
-                    append((pos, move, None))
-        return ans
 
-    def generate_all_attacking_moves(self) -> list[Coordinate]:
-        """generates every valid ATTACKING move in the board at this state"""
-        ans = []
-        pieces = self.black_pieces if self.turn == WHITE else self.white_pieces
-        extend = ans.extend
-        for pos in pieces:
-            extend(self.generate_attacking_moves(pos))
-        return ans
+    def unmake_move(self, move, old_state):
+        """
+        Restore board to previous state using the dictionary returned by move_piece.
+        """
+        start = old_state['start']
+        end = old_state['end']
+        piece = old_state['piece']
+        captured_piece = old_state['captured_piece']
+        captured_square = old_state['captured_square']
 
-    def perft(self, depth, prev_moves=[]):
+        # Clear both start and end to avoid leftover bits
+        self.remove_piece(end)
 
-        if depth == 0:
-            return 1
+        # Put the moving piece back on its original square.
+        self.set_piece(start, piece)
+
+        # Restore captured piece (if any). If en-passant was used, captured_square will be that pawn's square.
+        if captured_square is not None and captured_piece != EMPTY:
+            self.set_piece(captured_square, captured_piece)
+
+        # If this was a promotion, the original pawn must be restored at `start`
+        # (we already restored the original piece value above because we saved 'piece' explicitly)
+
+        # If castling moved a rook, restore the rook to its original square:
+        # We can recover whether this was a castling by looking at old_state['promotion'] value.
+        prom = old_state.get('promotion')
+        castle = old_state.get('castle')
+        if castle == 'K_CASTLE':
+            if old_state['turn'] == WHITE:
+                # The rook originally was at 63 (h1) and must be restored; clear the current rook square (f1 index 61)
+                self.remove_piece(WHITE_KING_START + 1)  # clear f1
+                self.set_piece(WHITE_KING_START + 3, ROOK | WHITE)  # put rook back on h1
+            else:
+                self.remove_piece(BLACK_KING_START + 1)
+                self.set_piece(BLACK_KING_START + 3, ROOK | BLACK)
+        elif castle == 'Q_CASTLE':
+            if old_state['turn'] == WHITE:
+                self.remove_piece(WHITE_KING_START - 1)  # clear d1
+                self.set_piece(WHITE_KING_START - 4, ROOK | WHITE)  # put rook back on a1
+            else:
+                self.remove_piece(BLACK_KING_START - 1)
+                self.set_piece(BLACK_KING_START - 4, ROOK | BLACK)
+
+        # Restore meta state
+        self.castling = old_state['castling']
+        self.ep_target = old_state['ep_target']
+        self.halfs = old_state['halfs']
+        self.fulls = old_state['fulls']
+        self.turn = old_state['turn']
+
+
+    def generate_copy(self):
+        my_copy = Game(board=self.board.copy(), turn=self.turn, castling=self.castling,
+                    halfs=self.halfs, fulls=self.fulls)
+        my_copy.white_pawns = self.white_pawns
+        my_copy.white_knights = self.white_knights
+        my_copy.white_bishops = self.white_bishops
+        my_copy.white_rooks = self.white_rooks
+        my_copy.white_queens = self.white_queens
+        my_copy.white_kings = self.white_kings
+        my_copy.black_pawns = self.black_pawns
+        my_copy.black_knights = self.black_knights
+        my_copy.black_bishops = self.black_bishops
+        my_copy.black_rooks = self.black_rooks
+        my_copy.black_queens = self.black_queens
+        my_copy.black_kings = self.black_kings
+        my_copy.white_pieces = self.white_pieces
+        my_copy.black_pieces = self.black_pieces
+
+        my_copy.pawn_attacks_white =copy.deepcopy(self.pawn_attacks_white)
+        my_copy.pawn_attacks_black =copy.deepcopy(self.pawn_attacks_black)
+        my_copy.pawn_pushes_white =copy.deepcopy(self.pawn_pushes_white)
+        my_copy.pawn_pushes_black =copy.deepcopy(self.pawn_pushes_black)
+        my_copy.pawn_double_pushes_white = copy.deepcopy(self.pawn_double_pushes_white)
+        my_copy.pawn_double_pushes_black = copy.deepcopy(self.pawn_double_pushes_black)
+        my_copy.knight_moves = copy.deepcopy(self.knight_moves)
+        my_copy.king_moves =copy.deepcopy(self.king_moves)
+        my_copy.bishop_rays =copy.deepcopy(self.bishop_rays)
+        my_copy.rook_rays =copy.deepcopy(self.rook_rays)
+        my_copy.queen_rays =copy.deepcopy(self.queen_rays)
         
-        in_check = self.in_check(self.turn)
+        return my_copy
 
-        moves = self.generate_all_legal_moves(in_check)
 
-        num_moves = 0
-        for move in moves:
-            info = self.move_piece(move)
-            if info is None:
-                continue
-            dest, old_ep, old_cr = info
-            num_moves += self.perft(depth-1, prev_moves + [move])
-            self.unmove_piece(move, dest, old_ep, old_cr)
-
-        return num_moves
+    def generate_legal_moves(self, colour):
+        pseudo_moves = self.generate_all_moves(colour)
+        legal_moves = []
+        for move in pseudo_moves:
+            old_state = self.move_piece(move)
+            kings = self.white_kings if colour == WHITE else self.black_kings
+            king_square = kings.bit_length() - 1
+            if not self.is_square_attacked(king_square, BLACK if colour == WHITE else WHITE):
+                legal_moves.append(move)
+            self.unmake_move(move, old_state)
+        return legal_moves
     
-    def show_split_perft(self, depth):
-        """do perft and show each path """
-        count = 0
-        for move in self.generate_all_legal_moves():
-            pos, new_pos, prom = move
-            movestring = coordinate_to_square(pos) + coordinate_to_square(new_pos)
-            info = self.move_piece(move)
-            num = self.perft(depth)
-            print(f"{movestring}: {num}")
-            dest, old_ep, old_cr = info
-            self.unmove_piece(move, dest, old_ep, old_cr)
-            count += num
-        return count
+    def piece_legal_moves(self, square):
+        piece = self.get_square(square)
+        colour = get_colour(piece)
+        return [move for move in self.generate_legal_moves(colour) if move[0] == square]
 
+    def is_checkmate(self, colour):
+        if not self.generate_legal_moves(colour):
+            kings = self.white_kings if colour == WHITE else self.black_kings
+            king_square = kings.bit_length() - 1
+            if self.is_square_attacked(king_square, BLACK if colour == WHITE else WHITE):
+                return True
+        return False
+
+    def is_stalemate(self, colour):
+        if not self.generate_legal_moves(colour):
+            kings = self.white_kings if colour == WHITE else self.black_kings
+            king_square = kings.bit_length() - 1
+            if not self.is_square_attacked(king_square, BLACK if colour == WHITE else WHITE):
+                return True
+        return False
+
+    # These are helper functions for our GUI/parser
+
+    def legal_move(self, start, end):
+        start = start[1]*8 + start[0]
+        end = end[1]*8 + end[0]
+
+        if self.is_promotion_move(end, start):
+            colour = get_colour(self.get_square(start))
+            return (start, end, BISHOP | colour) in self.generate_legal_moves(self.turn)
+        return (start, end, None) in self.generate_legal_moves(self.turn)
+
+    def is_empty(self, square):
+        return self.get_square(square) == EMPTY
+
+    def is_promotion_move(self, target, square):
+        piece = self.get_square(square)
+        colour = get_colour(piece)
+        if strip_piece(piece) != PAWN:
+            return False
+        if colour == WHITE:
+            return target // 8 == 0
+        if colour == BLACK:
+            return target // 8 == 7
+
+def perft(board, depth):
+    """Count leaf nodes at a given depth using make/unmake moves."""
+    if depth == 0:
+        return 1
+
+    total = 0
+    legal_moves = board.generate_legal_moves(board.turn)
+
+    for move in legal_moves:
+        old_state = board.move_piece(move)
+        total += perft(board, depth - 1)
+        board.unmake_move(move, old_state)
+
+
+    return total
+
+def show_split_perft(board, depth):
+    legal_moves = board.generate_legal_moves(board.turn)
+    total = 0
+    for move in legal_moves:
+        old_state = board.move_piece(move)
+        count = perft(board, depth-1)
+        print(f"{coordinate_to_square(move[0])}{coordinate_to_square(move[1])}: {count}")
+        total += count
+        board.unmake_move(move, old_state)
+        
+    print(f"Total nodes: {total}")
+    return total
+
+
+def format_move(move):
+    """Convert move tuple (src, dst, promo) to e2e4 style"""
+    src, dst, promo = move
+    file = 'abcdefgh'
+    rank = '12345678'
+    move_str = f"{file[src%8]}{rank[src//8]}{file[dst%8]}{rank[dst//8]}"
+    if promo:
+        move_str += get_piece_name(promo).lower()[0]
+    return move_str
 
 if __name__ == "__main__":
     game = Game()
-    #game.move_piece(((1,7), (2,5), None))
-    #game.move_piece(((4,1), (4,3), None))
-    #game.show_split_perft(1)
-
-
+    print(get_piece_name(game.get_square(61)))
+    print(get_piece_name(game.get_square(62)))
+    moves = game.generate_legal_moves(game.turn)
+    for move in moves:
+        start, end, _ = move
+        print(coordinate_to_square(start), coordinate_to_square(end))

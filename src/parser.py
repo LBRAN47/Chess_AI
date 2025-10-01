@@ -1,7 +1,10 @@
 from board import Game
-from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, Coordinate, ListBoard, Piece,
+from typing import List, Tuple
+from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, ListBoard,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
                   coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
+
+NO_CASTLING = 0
 
 def parse_FEN(text: str):
     ans = text.split()
@@ -40,6 +43,8 @@ def get_castling(text: str) -> int:
         4th bit: set if black can Queenside castle
     """
     castle_int = 0
+    if text == "-":
+        return NO_CASTLING
     for castle in text:
         if castle in CASTLES.keys():
             castle_int = castle_int | CASTLES[castle]
@@ -47,7 +52,7 @@ def get_castling(text: str) -> int:
             raise Exception(f"Invalid character in castle section: {castle}")
     return castle_int
 
-def get_ep_target(text: str) -> Coordinate | None:
+def get_ep_target(text: str) -> Tuple[int, int] | None:
     """Returns the coordinates of the ep target square, or None if no square is provided"""
     if text == '-':
         return None
@@ -75,7 +80,7 @@ def get_board_str(board: ListBoard) -> str:
     for row in range(board.rows):
         square_count = 0
         for col in range(board.rows):
-            square = board.get(col, row)
+            square = board.get(row*8 + col)
             if square == EMPTY:
                 square_count += 1
             else:
@@ -145,20 +150,20 @@ def parse_PGN( pgn):
 def get_coordinate(row, col):
     """Return a coordinate tuple based on the row and collumn string"""
     if col not in COLUMNS or row not in ROWS:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     return (COLUMN_CONVERT[col], ROW_CONVERT[row])
 
 
 def convert_coordinate(coord):
-    """Convert from Chess Coordinate to tuple"""
+    """Convert from Chess Tuple[int, int] to tuple"""
 
     if len(coord) != 2:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     col, row = coord 
     if col not in COLUMNS or row not in ROWS:
-        print("Invalid Coordinate")
+        print("Invalid Tuple[int, int]")
         return
     return (COLUMN_CONVERT[col], ROW_CONVERT[row])
 
@@ -224,15 +229,13 @@ def parse_castle(move, board):
     """Return the castling moveset represented by move"""
     row = 7 if board.turn == WHITE else 0
     if move in ['0-0', 'O-O']: #short castle
-        return ((4,row), (6,row), None)
+        return (row*8 + 4, row*8 + 6, None)
     elif move in ['0-0-0', 'O-O-O']: #long castle
-        return ((4,row), (2,row), None)
+        return (row*8 + 4, row*8 + 2, None)
     else:
         print("invalid move: did you mean castle?")
         
 
-
-    
 def parse_pawn(move, board):
     """Parse a pawn move.
 
@@ -256,7 +259,7 @@ def parse_pawn(move, board):
             print(f"no legal move {move}")
             return
         if len(move) == 4:
-            return ans
+            return (ans[0][1]*8 + ans[0][0], ans[1][1]*8 + ans[1][0], ans[2])
         prom_valid_length = 6
     else:
         ending_square = convert_coordinate(move[0:2])
@@ -265,7 +268,8 @@ def parse_pawn(move, board):
             return
         for i in [-2, -1, 1, 2]:
             coord = (start_col, ending_square[1]+i)
-            if out_of_bounds(coord) or not strip_piece(board.get_square(coord)) == PAWN:
+            real_coord = coord[1]*8 + coord[0]
+            if out_of_bounds(coord) or strip_piece(board.get_square(real_coord)) != PAWN:
                 continue
             if board.legal_move(coord, ending_square):
                 ans = (coord, ending_square, None)
@@ -273,7 +277,7 @@ def parse_pawn(move, board):
             print(f"no valid move {move}")
             return
         if len(move) == 2:
-            return ans
+            return (ans[0][1]*8 + ans[0][0], ans[1][1]*8 + ans[1][0], ans[2])
         prom_valid_length = 4
 
     if len(move) == prom_valid_length:
@@ -284,7 +288,7 @@ def parse_pawn(move, board):
         if ending_square[1] != 0 and ending_square[1] != 7:
             print(f"Invalid Promotion: {move}")
             return
-        return (ans[0], ans[1], piece)
+        return (ans[0][1]*8 + ans[0][0], ans[1][1]*8 + ans[1][0], piece)
     else:
         print(f"Invalid Length: {move}")
         return
@@ -311,12 +315,13 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
     if start_coords is not None:
         start_col, start_row = start_coords
 
+    target_col, target_row = target_coords
     moveset = None
     for row in range(8):
         row = start_row if start_row is not None else row
         for col in range(8):
             col = start_col if start_col is not None else col
-            square = board.get_square((col, row))
+            square = board.get_square(row*8 + col)
             if square == EMPTY:
                 continue
             if (strip_piece(PIECES[piece_str]) == strip_piece(square)
@@ -324,13 +329,14 @@ def get_moveset(piece_str, target_coords, board, start_coords=None):
                 if moveset is not None:
                     print("Insufficient disambiguation")
                     return
-                moveset = ((col, row), target_coords, None)
+                moveset = (row*8 + col, target_row*8 + target_col, None)
             if start_col is not None: #only check this collumn
                 break
         if start_row is not None: #only check this row
             break
     if moveset is None:
         print(f"no piece {piece_str} able to move to {target_coords}\n Based on starting square: {start_coords}")
+    print(moveset)
     return moveset
 
 if __name__ == "__main__":
