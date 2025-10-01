@@ -116,6 +116,8 @@ class Main():
             return 
         x, y = event.pos
         target = self.view.get_piece_coords(x,y)
+        if target is None:
+            return
         if self.piece_selected and target != self.piece_selected:
             if self.board.legal_move(self.piece_selected, target):
                 if self.board.is_promotion_move(get_real_index(target), self.board.get_square(get_real_index(self.piece_selected))):
@@ -127,6 +129,8 @@ class Main():
             elif self.board.is_empty(get_real_index(target)):
                 return
         coords = self.view.get_piece_coords(x,y)
+        if coords is None:
+            return
         self.piece_held = coords if not self.board.is_empty(get_real_index(coords)) else None
         self.piece_selected = self.piece_held
 
@@ -142,8 +146,6 @@ class Main():
             target = self.view.get_piece_coords(x,y)
             if self.piece_selected and self.piece_selected != target and self.board.legal_move(self.piece_held, target):
                 if self.board.is_promotion_move(get_real_index(target), get_real_index(self.piece_selected)):
-                    print("MADE")
-                    print(target, self.piece_held)
                     self.promoting = True
                     self.promoting_move = target
                     self.piece_held = None
@@ -153,14 +155,12 @@ class Main():
         self.piece_held = None
 
     def move_piece(self, target, promotion_piece):
-        print("MADE TO MOVE")
         moveset = (get_real_index(self.piece_selected), get_real_index(target), promotion_piece)
         self.board.move_piece(moveset)
         self.piece_selected = None
         self.piece_held = None
         if self.board.is_checkmate(self.board.turn):
             self.in_checkmate = True
-        print(self.board)
 
 
 #prepare subprocess for stockfish comparision

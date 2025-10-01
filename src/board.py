@@ -429,7 +429,6 @@ class Game():
 
     def replace_square(self, position: int, piece: int):
         """replace the position in board with piece"""
-        self.remove_piece(position)
         self.set_piece(position, piece)
 
     def change_turn(self):
@@ -692,7 +691,7 @@ class Game():
                     break
 
         return False
-    
+
     def move_piece(self, move):
         """
         Make the move and return a dictionary describing the previous state so
@@ -736,13 +735,14 @@ class Game():
             self.remove_piece(old_state['captured_square'])
 
         # --- Move piece ---
-        self.replace_square(end, piece)
         self.remove_piece(start)
 
         # --- Handle promotions: promotion is passed as piece-int (e.g. QUEEN|WHITE) ---
         if promotion and promotion in [BISHOP | self.turn, KNIGHT | self.turn, QUEEN | self.turn, ROOK | self.turn]:
             # replace pawn at 'end' with promoted piece
-            self.replace_square(end, promotion)
+            self.set_piece(end, promotion)
+        else:
+            self.set_piece(end, piece)
 
         # --- Handle castling rook moves if the move was a castling move flagged in promotion field ---
         # (Your code used 'K_CASTLE'/'Q_CASTLE' in place of promotion for castling)
@@ -789,12 +789,10 @@ class Game():
         captured_square = old_state['captured_square']
 
         # Clear both start and end to avoid leftover bits
-        self.remove_piece(start)
         self.remove_piece(end)
 
         # Put the moving piece back on its original square.
-        if piece != EMPTY:
-            self.set_piece(start, piece)
+        self.set_piece(start, piece)
 
         # Restore captured piece (if any). If en-passant was used, captured_square will be that pawn's square.
         if captured_square is not None and captured_piece != EMPTY:
@@ -903,6 +901,9 @@ class Game():
         start = start[1]*8 + start[0]
         end = end[1]*8 + end[0]
 
+        if self.is_promotion_move(end, start):
+            colour = get_colour(self.get_square(start))
+            return (start, end, BISHOP | colour) in self.generate_legal_moves(self.turn)
         return (start, end, None) in self.generate_legal_moves(self.turn)
 
     def is_empty(self, square):
@@ -911,7 +912,6 @@ class Game():
     def is_promotion_move(self, target, square):
         piece = self.get_square(square)
         colour = get_colour(piece)
-        print(get_piece_name(strip_piece(piece)))
         if strip_piece(piece) != PAWN:
             return False
         if colour == WHITE:
