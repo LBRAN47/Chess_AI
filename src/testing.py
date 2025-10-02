@@ -17,9 +17,9 @@ class BaseTest(unittest.TestCase):
         for i in range(8, 16):
             self.assertEqual(self.game.get_square(i), PAWN)
         # Check white king
-        self.assertTrue(self.game.white_kings > 0)
+        self.assertTrue(self.game.white_king > -1)
         # Check black king
-        self.assertTrue(self.game.black_kings > 0)
+        self.assertTrue(self.game.black_king > -1)
 
     def test_fen_roundtrip(self):
         # Convert back to FEN

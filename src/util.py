@@ -175,10 +175,10 @@ class ListBoard():
 
 
 
-def make_bit_board(squares: set[Tuple[int, int]]) -> int:
+def make_bit_board(*squares) -> int:
     bb = 0
     for square in squares:
-        bb = set_bit_board(bb, square)
+        bb |= 1 << square
     return bb
 
 def set_bit_board(board: int, coords: Tuple[int, int]):
