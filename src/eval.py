@@ -1,5 +1,4 @@
-from board import Game
-from util import PAWN, BISHOP, QUEEN, KING, ROOK, KNIGHT
+from util import PAWN, BISHOP, QUEEN, KING, ROOK, KNIGHT, get_colour, WHITE, BLACK, strip_piece, EMPTY
 
 
 # The value of a given piece. bishops slightly better than knights, knights
@@ -93,9 +92,39 @@ PST_KING_ENDGAME = [
 -50,-30,-30,-30,-30,-30,-30,-50
 ]
 
+MATCH_PIECE = {
+    PAWN : PST_PAWN,
+    KNIGHT : PST_KNIGHT,
+    BISHOP : PST_BISHOP,
+    ROOK : PST_ROOK,
+    QUEEN : PST_QUEEN,
+    KING : PST_KING_OPENING,
+}
+
 def mirror(idx):
     return idx ^ 56
 
-def evaluate_board(board: Game):
+def evaluate_board(board):
+    score = 0
+    for i in range(64):
+        piece = board[i]
+        if piece == EMPTY:
+            continue
+        piece_type = strip_piece(piece)
+        colour = get_colour(piece)
+
+        if colour == BLACK:
+            i = mirror(i)
+            score -= PIECE_VALS[piece_type] + MATCH_PIECE[piece_type][i]
+        else:
+            score += PIECE_VALS[piece_type] + MATCH_PIECE[piece_type][i]
+
+    return score
+
+
+
+
+
+
 
 

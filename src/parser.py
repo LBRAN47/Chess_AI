@@ -77,10 +77,10 @@ def board_to_FEN(board: Game) -> str:
 def get_board_str(board) -> str:
     """return the FEN board string from the ListBoard"""
     ans = ""
-    for row in range(board.rows):
+    for row in range(8):
         square_count = 0
-        for col in range(board.rows):
-            square = board.get(row*8 + col)
+        for col in range(8):
+            square = board[row*8 + col]
             if square == EMPTY:
                 square_count += 1
             else:

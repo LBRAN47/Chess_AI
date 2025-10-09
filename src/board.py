@@ -2,6 +2,7 @@ from math import pi, remainder
 from typing import List, Tuple
 import copy
 import random
+from eval import evaluate_board
 
 from pygame.event import get
 from util import (BLACK_BISHOP, START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
@@ -1014,8 +1015,11 @@ class Game():
         get_blockers(BISHOP, self.bishop_rays[king_square])
         get_blockers(ROOK, self.rook_rays[king_square])
         return pins
-
-
+    
+    def make_move_adversary(self):
+        legal_moves = self.generate_legal_moves(self.turn)
+        move = random.choice(legal_moves)
+        self.move_piece(move)
 
 def perft(board, depth):
     """Count leaf nodes at a given depth using make/unmake moves."""
@@ -1034,6 +1038,7 @@ def perft(board, depth):
 
 def show_split_perft(board, depth):
     legal_moves = board.generate_legal_moves(board.turn)
+    eval = evaluate_board(board.board)
     total = 0
     for move in legal_moves:
         old_state = board.move_piece(move)
@@ -1044,7 +1049,6 @@ def show_split_perft(board, depth):
         
     print(f"Total nodes: {total}")
     return total
-
 
 if __name__ == "__main__":
     game = Game()
