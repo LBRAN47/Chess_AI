@@ -61,7 +61,35 @@ class Main():
         self.promoting_move = None
         self.in_checkmate = False
 
+        self.start_screen()
         self.game_loop()
+
+    def start_screen(self):
+        choice = None
+        while choice is None:
+            self.view.show_start_screen()
+            self.view.update_screen()
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    quit()
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    colour = self.view.start.get_colour_selection(event.pos)
+                    if colour is not None:
+                        self.player_colour = colour
+                        print(colour)
+                        return
+
+
+
+
+
+
+
+
+
+
+
+
 
     def game_loop(self):
         clock = pg.time.Clock()
