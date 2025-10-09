@@ -951,6 +951,7 @@ class Game():
                 if (my_bb & bit) == 0: #if the square is not occupied by our own we can take
                     bb |= bit
                 if (occupied & bit): #if the square is non empty, we cannot go further
+                    bb |= bit
                     break
         return bb
 
@@ -1015,11 +1016,76 @@ class Game():
         get_blockers(BISHOP, self.bishop_rays[king_square])
         get_blockers(ROOK, self.rook_rays[king_square])
         return pins
+
+    def is_capture(self, move):
+        start, end, _ = move
+        return self.board[end] != EMPTY
+
     
     def make_move_adversary(self):
         legal_moves = self.generate_legal_moves(self.turn)
-        move = random.choice(legal_moves)
+        move, _ = find_best_move(self, 5)
+        print(move)
         self.move_piece(move)
+
+def alphabeta(board, depth, alpha, beta, maximizing):
+    """
+    Alpha-Beta Pruning Minimax for your bitboard-based chess engine.
+    
+    Args:
+        board: Game instance (your existing board object)
+        depth: search depth (in plies)
+        alpha: best score guaranteed for maximizer
+        beta:  best score guaranteed for minimizer
+        maximizing: True if it's white's turn, False if black's
+
+    Returns:
+        (best_score, best_move)
+    """
+    # Base case: leaf node
+    if depth == 0 or board.is_checkmate(board.turn):
+        return evaluate_board(board.board), None
+
+    best_move = None
+    legal_moves = board.generate_legal_moves(board.turn)
+    legal_moves.sort(key=lambda m : board.is_capture(m), reverse=True)
+
+    if maximizing:
+        value = -float('inf')
+        for move in legal_moves:
+            old_state = board.move_piece(move)
+            score, _ = alphabeta(board, depth - 1, alpha, beta, False)
+            board.unmake_move(move, old_state)
+
+            if score > value:
+                value = score
+                best_move = move
+
+            alpha = max(alpha, value)
+            if beta <= alpha:
+                break  # Beta cutoff
+        return value, best_move
+
+    else:
+        value = float('inf')
+        for move in legal_moves:
+            old_state = board.move_piece(move)
+            score, _ = alphabeta(board, depth - 1, alpha, beta, True)
+            board.unmake_move(move, old_state)
+
+            if score < value:
+                value = score
+                best_move = move
+
+            beta = min(beta, value)
+            if beta <= alpha:
+                break  # Alpha cutoff
+        return value, best_move
+
+def find_best_move(board, depth):
+    maximizing = (board.turn == WHITE)
+    score, best_move = alphabeta(board, depth, -float('inf'), float('inf'), maximizing)
+    return best_move, score
 
 def perft(board, depth):
     """Count leaf nodes at a given depth using make/unmake moves."""

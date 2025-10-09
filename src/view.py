@@ -27,16 +27,20 @@ class BoardView(pg.Surface):
     def __init__(self, dims, flags=0):
         super().__init__(dims, flags)
         width, height = dims
-        self.square_dims = (width // 8, height // 8)
+        self.square_dims = (width / 8, height / 8)
         self.square_width, self.square_height = self.square_dims
         self.img_cache = {}
         self.selected = None
         self.selected_possible_moves = None
         self.held = None
 
+
     def get_piece(self, row, col):
         """return the piece img at row and column"""
         return self.board[row][col]
+
+    def draw_bg(self, size):
+        pg.draw.rect(self, WHITE, pg.Rect((0, 0), size))
 
     def make_board(self, board_obj):
         """draws the board and pieces onto the surface, where board is a 2D array of pieces"""
@@ -112,9 +116,9 @@ class StartScreen(pg.Surface):
         self.logo = pg.image.load(os.path.join(directory, "Images", "logo.png"))
 
 
-
     def draw_bg(self, size):
-        pg.draw.rect(self, BROWN, pg.Rect(0, 0, size, size))
+        pg.draw.rect(self, BROWN, pg.Rect((0, 0), size))
+
 
     def draw_logo(self):
         self.blit(self.logo, (self.width * 0.1, self.height * 0.1))
@@ -169,17 +173,17 @@ class View():
         self.start = StartScreen(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
+    def draw_bg(self):
+        pg.draw.rect(self.window, BROWN, pg.Rect((0, 0), self.SCREEN_SIZE))
+
     def update_screen(self):
         pg.display.update(pg.Rect((0, 0), self.SCREEN_SIZE))
-
-    def update_board(self):
-        pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
 
     def clear(self):
         self.window.fill(BLACK_COLOUR)
 
     def show_start_screen(self):
-        self.start.draw_bg(self.SCREEN_SIZE[0])
+        self.start.draw_bg(self.SCREEN_SIZE)
         self.start.draw_buttons()
         self.start.draw_logo()
         self.window.blit(self.start, (0, 0))
@@ -187,6 +191,8 @@ class View():
     def show_board(self, board_obj, selected=None, held=None):
         board = board_obj.board
         self.board.held = held
+        self.draw_bg()
+        self.board.draw_bg(self.SCREEN_SIZE)
         self.board.update_selection(selected, board_obj)
         self.board.make_board(board_obj)
         self.board.show_possible_moves(board_obj)

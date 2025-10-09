@@ -20,7 +20,7 @@ def game_loop(board, view, file=None):
     while True:
             board.show_board()
             view.show_board(board, None)
-            view.update_board()
+            view.update_screen()
             if file is None:
                 move = input("Make a move: ")
             else:
@@ -50,7 +50,7 @@ def game_loop(board, view, file=None):
 
 class Main():
 
-    def __init__(self, board, view):
+    def __init__(self, board, view, multiplayer=False):
         self.board = board
         self.view = view
         self.piece_held = None
@@ -60,8 +60,11 @@ class Main():
         self.promoting = False
         self.promoting_move = None
         self.in_checkmate = False
+        self.player_colour = None
+        self.multiplayer = multiplayer
 
-        self.start_screen()
+        if not multiplayer:
+            self.start_screen()
         self.game_loop()
 
     def start_screen(self):
@@ -76,24 +79,12 @@ class Main():
                     colour = self.view.start.get_colour_selection(event.pos)
                     if colour is not None:
                         self.player_colour = colour
-                        print(colour)
                         return
 
-
-
-
-
-
-
-
-
-
-
-
-
     def game_loop(self):
-        clock = pg.time.Clock()
         while True:
+
+
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     quit()
@@ -106,6 +97,10 @@ class Main():
                 elif event.type == pg.KEYDOWN:
                     self.key_press_handler(event)
 
+
+            if self.in_checkmate:
+                quit()
+
             self.view.show_board(self.board, self.piece_selected, self.piece_held)
 
             if self.is_piece_held():
@@ -114,11 +109,11 @@ class Main():
                                           self.piece_held)
 
 
-            self.view.update_board()
-            clock.tick(100)
+            self.view.update_screen()
+
+            if not self.multiplayer and self.board.turn != self.player_colour:
+                self.board.make_move_adversary()
             
-            if self.in_checkmate:
-                quit()
 
 
 
@@ -222,6 +217,7 @@ if __name__ == "__main__":
     cmd_parser = argparse.ArgumentParser() 
     cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
     cmd_parser.add_argument("--FEN", required=False, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
+    cmd_parser.add_argument("--mp", action="store_true", help="play against a friend")
 
     subparsers = cmd_parser.add_subparsers(dest="command", required=False)
     
@@ -261,7 +257,10 @@ if __name__ == "__main__":
         view = View()
         board = parse_FEN(args.FEN)
         if args.GUI:
-            Main(board, view)
+            if args.mp:
+                Main(board, view, multiplayer=True)
+            else:
+                Main(board, view)
         else:
             while True:
                 if args.command == "file":
