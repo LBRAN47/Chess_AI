@@ -1,0 +1,53 @@
+name: chess
+channels:
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - _openmp_mutex=5.1=1_gnu
+  - blas=1.0=openblas
+  - bzip2=1.0.8=h5eee18b_6
+  - ca-certificates=2025.9.9=h06a4308_0
+  - expat=2.7.1=h6a678d5_0
+  - ld_impl_linux-64=2.40=h12ee557_0
+  - libffi=3.4.4=h6a678d5_1
+  - libgcc-ng=11.2.0=h1234567_1
+  - libgfortran-ng=11.2.0=h00389a5_1
+  - libgfortran5=11.2.0=h1234567_1
+  - libgomp=11.2.0=h1234567_1
+  - libmpdec=4.0.0=h5eee18b_0
+  - libopenblas=0.3.30=h46f56fc_0
+  - libstdcxx-ng=11.2.0=h1234567_1
+  - libuuid=1.41.5=h5eee18b_0
+  - libxcb=1.17.0=h9b100fa_0
+  - llvmlite=0.44.0=py313hc1e8f15_1
+  - lz4-c=1.9.4=h6a678d5_1
+  - ncurses=6.4=h6a678d5_0
+  - numba=0.61.2=py313h6a678d5_0
+  - numpy=2.2.5=py313h816806e_1
+  - numpy-base=2.2.5=py313h7203c5b_1
+  - openssl=3.0.18=hd6dcaed_0
+  - pip=25.1=pyhc872135_2
+  - pthread-stubs=0.3=h0ce48e5_1
+  - python=3.13.5=h4612cfd_100_cp313
+  - python_abi=3.13=0_cp313
+  - readline=8.2=h5eee18b_0
+  - sqlite=3.45.3=h5eee18b_0
+  - tbb=2021.8.0=hdb19cb5_0
+  - tk=8.6.14=h993c535_1
+  - tzdata=2025b=h04d1e81_0
+  - wheel=0.45.1=py313h06a4308_0
+  - xorg-libx11=1.8.12=h9b100fa_1
+  - xorg-libxau=1.0.12=h9b100fa_0
+  - xorg-libxdmcp=1.1.5=h9b100fa_0
+  - xorg-xorgproto=2024.1=h5eee18b_1
+  - xz=5.6.4=h5eee18b_1
+  - zlib=1.2.13=h5eee18b_1
+  - zstd=1.5.6=hc292b87_0
+  - pip:
+      - altgraph==0.17.4
+      - packaging==24.2
+      - pygame==2.6.1
+      - pyinstaller==6.11.1
+      - pyinstaller-hooks-contrib==2025.0
+      - setuptools==75.8.0
+prefix: /home/luke/miniconda3/envs/chess

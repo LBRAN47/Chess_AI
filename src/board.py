@@ -1029,25 +1029,13 @@ class Game():
         self.move_piece(move)
 
 def alphabeta(board, depth, alpha, beta, maximizing):
-    """
-    Alpha-Beta Pruning Minimax for your bitboard-based chess engine.
-    
-    Args:
-        board: Game instance (your existing board object)
-        depth: search depth (in plies)
-        alpha: best score guaranteed for maximizer
-        beta:  best score guaranteed for minimizer
-        maximizing: True if it's white's turn, False if black's
-
-    Returns:
-        (best_score, best_move)
-    """
-    # Base case: leaf node
+    # Base case
     if depth == 0 or board.is_checkmate(board.turn):
         return evaluate_board(board.board), None
 
     best_move = None
     legal_moves = board.generate_legal_moves(board.turn)
+    #do the captures first
     legal_moves.sort(key=lambda m : board.is_capture(m), reverse=True)
 
     if maximizing:

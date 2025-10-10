@@ -212,8 +212,7 @@ def drain():
         if line == "readyok":
             break
 
-
-if __name__ == "__main__":
+def main():
     cmd_parser = argparse.ArgumentParser() 
     cmd_parser.add_argument("--GUI", action="store_true", help="run GUI")
     cmd_parser.add_argument("--FEN", required=False, default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", help="provide the FEN")
@@ -270,3 +269,6 @@ if __name__ == "__main__":
                 ans = input("Play Again? ")
                 if ans not in ['y', 'Y', 'yes']:
                     break
+
+if __name__ == "__main__":
+    main()
