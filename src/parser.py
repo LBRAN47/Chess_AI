@@ -1,6 +1,6 @@
 from board import Game
 from typing import List, Tuple
-from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, ListBoard,
+from util import (INV_PIECES, WHITE, BLACK, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING,
                   CASTLES, EMPTY, PIECENAMES, COLUMNS, ROWS, COLUMN_CONVERT, ROW_CONVERT, PIECES,
                   coordinate_to_square, INV_CASTLES, out_of_bounds, strip_piece)
 
@@ -21,7 +21,7 @@ def parse_FEN(text: str):
     fulls = int(fulls)
     return Game(board, turn, castling, ep_target, halfs, fulls)
 
-def get_board(text: str) -> ListBoard:
+def get_board(text: str):
     """Takes in the board segment of the FEN, and returns a ListBoard.
     Where 0 is an empty square"""
     board = []
@@ -33,7 +33,7 @@ def get_board(text: str) -> ListBoard:
             board.append(PIECES[square])
     if len(board) != 64:
                 raise Exception(f"invalid FEN board size: {len(board)} expected 64")
-    return ListBoard(board)
+    return board
 
 def get_castling(text: str) -> int:
     """Returns the a 4-bit integer where:
@@ -74,13 +74,13 @@ def board_to_FEN(board: Game) -> str:
     ans += str(board.fulls)
     return ans
 
-def get_board_str(board: ListBoard) -> str:
+def get_board_str(board) -> str:
     """return the FEN board string from the ListBoard"""
     ans = ""
-    for row in range(board.rows):
+    for row in range(8):
         square_count = 0
-        for col in range(board.rows):
-            square = board.get(row*8 + col)
+        for col in range(8):
+            square = board[row*8 + col]
             if square == EMPTY:
                 square_count += 1
             else:

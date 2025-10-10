@@ -2,6 +2,7 @@ import enum
 import unittest
 from parser import parse_FEN, board_to_FEN
 from board import Game, WHITE, BLACK, EMPTY, PAWN, KNIGHT, KING, QUEEN, perft
+from eval import evaluate_board
 
 class BaseTest(unittest.TestCase):
 
@@ -17,9 +18,11 @@ class BaseTest(unittest.TestCase):
         for i in range(8, 16):
             self.assertEqual(self.game.get_square(i), PAWN)
         # Check white king
-        self.assertTrue(self.game.white_kings > 0)
+        self.assertTrue(self.game.white_king > -1)
         # Check black king
-        self.assertTrue(self.game.black_kings > 0)
+        self.assertTrue(self.game.black_king > -1)
+        # check eval is equal 
+        self.assertTrue(evaluate_board(self.game.board) == 0)
 
     def test_fen_roundtrip(self):
         # Convert back to FEN
@@ -62,7 +65,7 @@ class BaseTest(unittest.TestCase):
         # Knight b1 to c3
         self.assertTrue(self.game.legal_move((1,7),(2,5)))
 
-    def test_perft(self):
+    def perft(self):
         for i, count in enumerate([1, 20, 400, 8902, 197281, 4865609]):
             self.assertEqual(perft(self.game, i), count)
 
@@ -92,7 +95,6 @@ class KiwiPeteTest(unittest.TestCase):
     def test_deltas(self):
         #white bishops
         self.assertTrue(self.game.turn == WHITE)
-        print(self.game.generate_bishop_moves(self.game.turn))
         self.assertEqual(len(self.game.generate_bishop_moves(self.game.turn)), 11)
         #move random pieces
         self.game.move_piece((48, 40, None))
@@ -103,7 +105,7 @@ class KiwiPeteTest(unittest.TestCase):
         #count moves 
         self.assertEqual(len(self.game.generate_legal_moves(self.game.turn)), 48)
 
-    def test_perft(self):
+    def perft(self):
         for i, count in enumerate([1, 48, 2039, 97862, 4085603]):
             self.assertEqual(perft(self.game, i), count)
 

@@ -2,13 +2,16 @@
 import pygame as pg
 from board import Game
 import os
-from util import get_piece_name, get_colour, EMPTY, get_real_index
+from util import get_piece_name, get_colour, EMPTY, get_real_index, BLACK, WHITE
+
+pg.init()
 
 directory = os.path.dirname(os.path.abspath(__file__))
 GREEN = pg.Color(118, 150, 86)
 CREAM = pg.Color(238,238,210)
-WHITE = pg.Color(255,255,255)
-BLACK = pg.Color(0,0,0)
+WHITE_COLOUR = pg.Color(255,255,255)
+BLACK_COLOUR = pg.Color(0,0,0)
+BROWN = pg.Color(140,110,59)
 
 GREY = pg.Color(220,220,220)
 BLUE = pg.Color(0,76,153)
@@ -24,16 +27,20 @@ class BoardView(pg.Surface):
     def __init__(self, dims, flags=0):
         super().__init__(dims, flags)
         width, height = dims
-        self.square_dims = (width // 8, height // 8)
+        self.square_dims = (width / 8, height / 8)
         self.square_width, self.square_height = self.square_dims
         self.img_cache = {}
         self.selected = None
         self.selected_possible_moves = None
         self.held = None
 
+
     def get_piece(self, row, col):
         """return the piece img at row and column"""
         return self.board[row][col]
+
+    def draw_bg(self, size):
+        pg.draw.rect(self, WHITE, pg.Rect((0, 0), size))
 
     def make_board(self, board_obj):
         """draws the board and pieces onto the surface, where board is a 2D array of pieces"""
@@ -58,7 +65,7 @@ class BoardView(pg.Surface):
             s.set_alpha(64)
             s.fill(BLUE)
             self.blit(s, (x,y))
-            pg.draw.rect(self, WHITE, pg.Rect(x, y, self.square_width, self.square_height), 5)
+            pg.draw.rect(self, WHITE_COLOUR, pg.Rect(x, y, self.square_width, self.square_height), 5)
 
     def save_image(self, square, row, col):
         filepath = get_piece_filename(square)
@@ -100,6 +107,62 @@ class BoardView(pg.Surface):
                           (coords[1]) * self.square_width + (self.square_width // 2))
                 pg.draw.circle(self, GREY, coords, self.square_width // 5)
 
+
+class StartScreen(pg.Surface):
+
+    def __init__(self, dims, flags=0):
+        super().__init__(dims, flags)
+        self.width, self.height = dims
+        self.logo = pg.image.load(os.path.join(directory, "Images", "logo.png"))
+
+
+    def draw_bg(self, size):
+        pg.draw.rect(self, BROWN, pg.Rect((0, 0), size))
+
+
+    def draw_logo(self):
+        self.blit(self.logo, (self.width * 0.1, self.height * 0.1))
+
+    def draw_buttons(self):
+        d = 25
+        font = pg.font.Font(None, 36)
+        title_font = pg.font.Font(None, 72)
+        width, height = self.width // 6, self.height // 12
+
+        title = title_font.render("Choose Your Side!", True, BLACK_COLOUR)
+        title_rect = title.get_rect(center=(self.width // 2, self.height // 2))
+        self.blit(title, title_rect)
+
+
+        x, y = (self.width * 0.5) - width - d , self.height * 0.65
+        pg.draw.rect(self, WHITE_COLOUR, pg.Rect(x, y, width, height), border_radius=20)
+        text = font.render("WHITE", True, BLACK_COLOUR)
+        text_rect = text.get_rect(center=(x + width // 2, y + height // 2))
+        self.blit(text, text_rect)
+        self.white_button_pos = (x, y)
+        
+
+        x = (self.width // 2)  + d
+        pg.draw.rect(self, BLACK_COLOUR, pg.Rect(x, y, width, height), border_radius=20)
+        text = font.render("BLACK", True, WHITE_COLOUR)
+        text_rect = text.get_rect(center=(x + width // 2, y + height // 2))
+        self.blit(text, text_rect)
+        self.black_button_pos = (x, y)
+
+        self.button_width, self.button_height = width, height
+
+    def get_colour_selection(self, pos):
+        x, y = pos
+        if x >= self.black_button_pos[0] and x <= self.black_button_pos[0] + self.button_width and y >= self.black_button_pos[1] and y <= self.black_button_pos[1] + self.button_height:
+            return BLACK
+        elif x >= self.white_button_pos[0] and x <= self.white_button_pos[0] + self.button_width and y >= self.white_button_pos[1] and y <= self.white_button_pos[1] + self.button_height:
+            return WHITE
+        else:
+            return
+
+
+
+
 class View():
     """composite class that instantiates all view objects + the game window"""
     def __init__(self):
@@ -107,17 +170,29 @@ class View():
         self.BOARD_LOC = (self.SCREEN_SIZE[0] * 0.05, self.SCREEN_SIZE[1] * 0.05) 
         self.BOARD_SIZE = min(self.SCREEN_SIZE) * 0.75
         self.window = pg.display.set_mode(self.SCREEN_SIZE)
+        self.start = StartScreen(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE)) #board is half the size of screen
 
-    def update_board(self):
-        pg.display.update(pg.Rect(self.BOARD_LOC, (self.BOARD_SIZE, self.BOARD_SIZE)))
+    def draw_bg(self):
+        pg.draw.rect(self.window, BROWN, pg.Rect((0, 0), self.SCREEN_SIZE))
+
+    def update_screen(self):
+        pg.display.update(pg.Rect((0, 0), self.SCREEN_SIZE))
 
     def clear(self):
-        self.window.fill(BLACK)
+        self.window.fill(BLACK_COLOUR)
+
+    def show_start_screen(self):
+        self.start.draw_bg(self.SCREEN_SIZE)
+        self.start.draw_buttons()
+        self.start.draw_logo()
+        self.window.blit(self.start, (0, 0))
 
     def show_board(self, board_obj, selected=None, held=None):
         board = board_obj.board
         self.board.held = held
+        self.draw_bg()
+        self.board.draw_bg(self.SCREEN_SIZE)
         self.board.update_selection(selected, board_obj)
         self.board.make_board(board_obj)
         self.board.show_possible_moves(board_obj)
