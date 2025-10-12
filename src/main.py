@@ -113,6 +113,10 @@ class Main():
 
             if not self.multiplayer and self.board.turn != self.player_colour:
                 self.board.make_move_adversary()
+                if self.board.is_checkmate(self.board.turn):
+                    quit()
+                if self.board.is_stalemate(self.board.turn):
+                    quit()
             
 
 
@@ -179,6 +183,7 @@ class Main():
 
     def move_piece(self, target, promotion_piece):
         moveset = (get_real_index(self.piece_selected), get_real_index(target), promotion_piece)
+        print(self.board.is_checking_move(moveset))
         self.board.move_piece(moveset)
         self.piece_selected = None
         self.piece_held = None

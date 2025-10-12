@@ -22,7 +22,7 @@ class BaseTest(unittest.TestCase):
         # Check black king
         self.assertTrue(self.game.black_king > -1)
         # check eval is equal 
-        self.assertTrue(evaluate_board(self.game.board) == 0)
+        self.assertTrue(evaluate_board(self.game) == 0)
 
     def test_fen_roundtrip(self):
         # Convert back to FEN
@@ -100,15 +100,31 @@ class KiwiPeteTest(unittest.TestCase):
         self.game.move_piece((48, 40, None))
         self.assertEqual(len(self.game.generate_bishop_moves(self.game.turn)), 8)
 
-
     def test_moves(self):
         #count moves 
         self.assertEqual(len(self.game.generate_legal_moves(self.game.turn)), 48)
+
+
 
     def perft(self):
         for i, count in enumerate([1, 48, 2039, 97862, 4085603]):
             self.assertEqual(perft(self.game, i), count)
 
+class CheckTest(unittest.TestCase):
+
+    def setUp(self):
+        self.start_fen = "r3k2r/1p1p1ppp/2p3P1/1b1P4/6N1/5R2/PPPQPPP1/R3K3 w Qkq - 0 1"
+        self.game = parse_FEN(self.start_fen)
+
+    def test_check(self):
+        #Knight g4 to f6
+        self.assertTrue(self.game.is_checking_move((38, 21, None)))
+        #Pawn gxf7
+        self.assertTrue(self.game.is_checking_move((22, 13, None)))
+        # Rook e3
+        self.assertTrue(self.game.is_checking_move((45, 44, None)))
+        # Queen e3
+        self.assertTrue(self.game.is_checking_move((51, 44, None)))
 
 def make_bb(*nums):
     bb = 0

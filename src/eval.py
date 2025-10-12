@@ -12,6 +12,10 @@ PIECE_VALS = {
     KING: 20000, #placeholder
 }
 
+MATE_VALUE = 100000
+STALEMATE_VALUE = 0
+
+
 # Piece square tables: Give bonuses based on where the piece is.
 
 PST_PAWN = [
@@ -123,9 +127,16 @@ def is_endgame(board):
     black = not board.black_queens or (board.black_queens and count_minor_pieces(board, BLACK) <= 1)
     return black and white
 
-def evaluate_board(board):
+
+def evaluate_board(board, depth=None):
     board_list = board.board
     score = 0
+    if depth is not None:
+        if board.is_checkmate(BLACK if board.turn == WHITE else WHITE):
+            return MATE_VALUE - depth
+        if board.is_stalemate(BLACK if board.turn == WHITE else WHITE):
+            return STALEMATE_VALUE - depth
+
     for i in range(64):
         piece = board_list[i]
         if piece == EMPTY:

@@ -1020,6 +1020,46 @@ class Game():
     def is_capture(self, move):
         start, end, _ = move
         return self.board[end] != EMPTY
+    def op_turn(self):
+        return WHITE if self.turn == BLACK else BLACK
+
+    def is_checking_move(self, move):
+        start, end, promotion = move
+        moving_piece = self.board[start]
+        moving_piece_type = strip_piece(moving_piece)
+        colour = get_colour(moving_piece)
+        opp_king = self.white_king if colour == BLACK else self.black_king
+
+        if moving_piece_type == KING:
+            return False
+        if moving_piece_type == BISHOP:
+            my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+            moves = self.generate_sliding_moves(end, self.bishop_rays, my_bb)
+        elif moving_piece_type == ROOK:
+            my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+            moves = self.generate_sliding_moves(end, self.rook_rays, my_bb)
+        elif moving_piece_type == QUEEN:
+            my_bb = self.white_pieces if colour == WHITE else self.black_pieces
+            moves = self.generate_sliding_moves(end, self.bishop_rays, my_bb)
+            moves.extend(self.generate_sliding_moves(end, self.rook_rays, my_bb))
+        elif moving_piece_type == KNIGHT:
+            row, col = divmod(end, 8)
+            for drow, drcol in [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (2, -1), (2, 1), (1, -2), (1, 2)]:
+                r, c = row + drow, col + drcol
+                if 0 <= r < 8 and 0 <= c < 8:
+                    if opp_king == r*8 + c:
+                        return True
+            return False
+        elif moving_piece_type == PAWN:
+            if colour == WHITE:
+                return opp_king in self.bb_iterate(self.pawn_attacks_white[end])
+            else:
+                return opp_king in self.bb_iterate(self.pawn_attacks_black[end])
+
+        return opp_king in [new_pos for (pos, new_pos, prom) in moves]
+
+
+        return False
 
     
     def make_move_adversary(self):
@@ -1030,13 +1070,17 @@ class Game():
 
 def alphabeta(board, depth, alpha, beta, maximizing):
     # Base case
-    if depth == 0 or board.is_checkmate(board.turn):
+    if depth == 0:
         return evaluate_board(board), None
+    if board.is_checkmate(board.turn):
+        return -100000 + depth, None
+    if board.is_stalemate(board.turn):
+        return 0, None
 
     best_move = None
     legal_moves = board.generate_legal_moves(board.turn)
     #do the captures first
-    legal_moves.sort(key=lambda m : board.is_capture(m), reverse=True)
+    legal_moves.sort(key=lambda m : board.is_capture(m) or board.is_checking_move(m), reverse=True)
 
     if maximizing:
         value = -float('inf')
