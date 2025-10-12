@@ -2,7 +2,7 @@
 import pygame as pg
 from board import Game
 import os
-from util import get_piece_name, get_colour, EMPTY, get_real_index, BLACK, WHITE
+from util import get_piece_name, get_colour, EMPTY, get_real_index, BLACK, WHITE, PIECE_FILENAMES
 
 pg.init()
 
@@ -18,7 +18,7 @@ BLUE = pg.Color(0,76,153)
 
 def get_piece_filename(piece):
     """assumes piece is a Piece instance"""
-    piece_file = get_piece_name(piece) +  ".png"
+    piece_file = PIECE_FILENAMES[piece] +  ".png"
     return os.path.join(directory, "PIECES", piece_file)
     
 

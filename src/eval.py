@@ -92,6 +92,7 @@ PST_KING_ENDGAME = [
 -50,-30,-30,-30,-30,-30,-30,-50
 ]
 
+
 MATCH_PIECE = {
     PAWN : PST_PAWN,
     KNIGHT : PST_KNIGHT,
@@ -104,10 +105,29 @@ MATCH_PIECE = {
 def mirror(idx):
     return idx ^ 56
 
+def count_minor_pieces(board, colour):
+    count = 0
+
+    if colour == WHITE:
+        minors = board.white_bishops | board.white_knights | board.white_rooks
+    else:
+        minors = board.black_bishops | board.black_knights | board.black_rooks
+
+    for _ in board.bb_iterate(minors):
+        count += 1
+    return count
+
+def is_endgame(board):
+    """we are in the endgame if, for both sides, """
+    white = not board.white_queens or (board.white_queens and count_minor_pieces(board, WHITE) <= 1)
+    black = not board.black_queens or (board.black_queens and count_minor_pieces(board, BLACK) <= 1)
+    return black and white
+
 def evaluate_board(board):
+    board_list = board.board
     score = 0
     for i in range(64):
-        piece = board[i]
+        piece = board_list[i]
         if piece == EMPTY:
             continue
         piece_type = strip_piece(piece)
@@ -115,9 +135,23 @@ def evaluate_board(board):
 
         if colour == BLACK:
             i = mirror(i)
-            score -= PIECE_VALS[piece_type] + MATCH_PIECE[piece_type][i]
+            factor = -1
         else:
-            score += PIECE_VALS[piece_type] + MATCH_PIECE[piece_type][i]
+            factor = 1
+
+        #add the piece's base value
+        score += factor * (PIECE_VALS[piece_type])
+
+        # get the piece's bonus value
+        if piece_type == KING:
+            if is_endgame(board):
+                bonus =  PST_KING_ENDGAME[i]
+            else:
+                bonus =  PST_KING_OPENING[i]
+        else:
+            bonus = MATCH_PIECE[piece_type][i]
+
+        score += factor * (bonus)
 
     return score
 

@@ -187,14 +187,16 @@ class Main():
 
 
 #prepare subprocess for stockfish comparision
-stockfish = subprocess.Popen([
-    'stockfish'],
-    stdin=subprocess.PIPE,
-    stdout=subprocess.PIPE,
-    universal_newlines=True,
-    bufsize=1)
+def open_stockfish():
+    stockfish = subprocess.Popen([
+        'stockfish'],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        bufsize=1)
+    return stockfish
 
-def read():
+def read(stockfish):
     stockfish.stdin.write("isready\n")
     stockfish.stdin.flush()
     while True:
@@ -204,7 +206,7 @@ def read():
         if line == "readyok":
             break
 
-def drain():
+def drain(stockfish):
     stockfish.stdin.write("isready\n")
     stockfish.stdin.flush()
     while True:
@@ -246,12 +248,13 @@ def main():
         
 
         if args.comp:
-            drain()
+            stockfish = open_stockfish()
+            drain(stockfish)
             stockfish.stdin.write("position fen " + args.FEN + '\n')
             stockfish.stdin.flush()
-            drain()
+            drain(stockfish)
             stockfish.stdin.write("go perft " + str(args.depth) + '\n')
-            read()
+            read(stockfish)
     else:
         view = View()
         board = parse_FEN(args.FEN)

@@ -58,6 +58,15 @@ TRUE_R = [i for i in range(7, -1, -1)]
 COLUMN_CONVERT = dict(zip(COLUMNS, TRUE_C))
 ROW_CONVERT = dict(zip(ROWS, TRUE_R))
 
+PIECE_FILENAMES = {
+    WHITE_PAWN:"wp", BLACK_PAWN:"bp",
+    WHITE_BISHOP:"wb", BLACK_BISHOP:"bb",
+    WHITE_KNIGHT:"wn", BLACK_KNIGHT:"bn",
+    WHITE_ROOK:"wr", BLACK_ROOK:"br",
+    WHITE_QUEEN:"wq", BLACK_QUEEN:"bq",
+    WHITE_KING:"wk", BLACK_KING:"bk",
+}
+
 def get_real_index(square: tuple[int, int]) -> int:
     return square[1]*8 + square[0]
 

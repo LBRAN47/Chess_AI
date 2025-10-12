@@ -1031,7 +1031,7 @@ class Game():
 def alphabeta(board, depth, alpha, beta, maximizing):
     # Base case
     if depth == 0 or board.is_checkmate(board.turn):
-        return evaluate_board(board.board), None
+        return evaluate_board(board), None
 
     best_move = None
     legal_moves = board.generate_legal_moves(board.turn)
@@ -1092,7 +1092,6 @@ def perft(board, depth):
 
 def show_split_perft(board, depth):
     legal_moves = board.generate_legal_moves(board.turn)
-    eval = evaluate_board(board.board)
     total = 0
     for move in legal_moves:
         old_state = board.move_piece(move)
