@@ -7,6 +7,7 @@ from view import View
 import argparse
 import time
 import subprocess
+import threading
 
 NO_PROMOTION = None
 
@@ -97,18 +98,30 @@ class Main():
                         self.player_colour = colour
                         return
 
-    def game_over_screen(self, player=WHITE):
+    def game_over_screen(self, player=WHITE, lost_on_time=None):
         opponent = WHITE if player == BLACK else BLACK
-        if self.board.is_stalemate(self.board.turn):
+        if lost_on_time is not None:
+            mode = "time"
+            if lost_on_time == player:
+                winner = opponent
+            else:
+                winner = player
+        elif self.board.is_stalemate(self.board.turn):
             winner = None
+            mode = "stalemate"
         elif self.board.is_checkmate(player):
             winner = opponent
-            if not self.multiplayer:
-                self.computer_wins += 1
+            mode = "checkmate"
         else:
             winner = player
-            if not self.multiplayer:
+            mode = "checkmate"
+
+        if not self.multiplayer:
+            if winner == player:
                 self.player_wins += 1
+            if winner == opponent:
+                self.computer_wins += 1
+
 
         while True:
             for event in pg.event.get():
@@ -124,15 +137,21 @@ class Main():
                         self.game_loop()
                     else:
                         return
-            self.view.show_end_screen(winner)
+            self.view.show_end_screen(winner, mode)
             self.view.update_screen()
 
 
 
 
     def game_loop(self):
+        total_time = 180.0
+        computer_time = total_time
+        player_time = total_time
+        start = time.time()
+        bot_thinking = False
+        bot_thread = None
         while True:
-
+            print(player_time, computer_time)
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -149,7 +168,7 @@ class Main():
                     self.key_press_handler(event)
 
 
-            self.view.show_board(self.board, self.piece_selected, self.piece_held)
+            self.view.show_board(self.board, self.piece_selected, self.piece_held, bot_thinking)
 
             if self.is_piece_held():
                 self.view.show_held_piece(self.piece_x,
@@ -157,7 +176,7 @@ class Main():
                                           self.piece_held)
 
             if not self.multiplayer:
-                self.view.show_scoreboard(self.player_wins, self.computer_wins)
+                self.view.show_stats(self.player_wins, self.computer_wins, player_time, computer_time, start, bot_thinking)
 
 
             self.view.update_screen()
@@ -168,10 +187,30 @@ class Main():
                 else:
                     self.game_over_screen()
 
-            if not self.multiplayer and self.board.turn != self.player_colour:
-                self.board.make_move_adversary()
+            if not self.multiplayer and self.board.turn != self.player_colour and not bot_thinking:
+                # players turn is done
+                player_time -= time.time() - start
+                #start computer's turn
+                start = time.time()
+                bot_thinking = True
+                bot_thread = threading.Thread(target=self.board.make_move_adversary)
+                bot_thread.start()
+
+            if bot_thread is not None and not bot_thread.is_alive() and bot_thinking:
+                # computer's turn is done 
+                computer_time -= time.time() - start
+                start = time.time() 
+                bot_thinking = False
                 if self.board.is_checkmate(self.board.turn) or self.board.is_stalemate(self.board.turn):
                     self.game_over = True
+
+            if not bot_thinking:
+                if player_time - (time.time() - start) < 0:
+                    self.game_over_screen(self.player_colour, self.player_colour)
+            else:
+                if computer_time - (time.time() - start) < 0:
+                    self.game_over_screen(self.player_colour, BLACK if self.player_colour == WHITE else WHITE)
+
             
 
 

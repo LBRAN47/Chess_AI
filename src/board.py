@@ -1,6 +1,7 @@
 from math import e, pi, remainder
 from typing import List, Tuple
 import copy
+import time
 import random
 from eval import evaluate_board
 
@@ -1114,7 +1115,6 @@ class Game():
 
     
     def make_move_adversary(self):
-        legal_moves = self.generate_legal_moves(self.turn)
         move, _ = find_best_move(self, 5)
         self.move_piece(move)
 

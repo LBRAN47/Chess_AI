@@ -2,6 +2,7 @@
 import pygame as pg
 from board import Game
 import os
+import time
 from util import get_piece_name, get_colour, EMPTY, get_real_index, BLACK, WHITE, PIECE_FILENAMES, count_value
 
 pg.init()
@@ -222,15 +223,16 @@ class View():
         self.start.draw_logo()
         self.window.blit(self.start.surface, (0, 0))
 
-    def show_board(self, board_obj, selected=None, held=None):
+    def show_board(self, board_obj, selected=None, held=None, bot_thinking=False):
         board = board_obj.board
         self.board.held = held
         self.draw_bg()
         self.start.surface.fill((0,0,0,0))
-        self.board.update_selection(selected, board_obj)
-        self.board.make_board(board_obj)
-        self.board.show_possible_moves(board_obj)
-        self.show_pieces_captured(board_obj)
+        if not bot_thinking:
+            self.board.update_selection(selected, board_obj)
+            self.board.make_board(board_obj)
+            self.board.show_possible_moves(board_obj)
+            self.show_pieces_captured(board_obj)
         self.window.blit(self.board.surface, self.BOARD_LOC)
 
 
@@ -299,13 +301,22 @@ class View():
                 text_rect = text.get_rect(center=(x + IMG_WIDTH // 2 + IMG_WIDTH, y + IMG_HEIGHT // 2))
                 self.window.blit(text, text_rect)
 
-    def show_end_screen(self, winner):
+    def show_end_screen(self, winner, mode):
         if winner is None:
             title = "Stalemate: It's a Draw!"
-        elif winner == WHITE:
-            title = "Checkmate: White Wins!"
+        elif mode == "checkmate":
+            if winner == WHITE:
+                title = "Checkmate: White Wins!"
+            else:
+                title = "Checkmate: Black Wins!"
+        elif mode == "time":
+            if winner == WHITE:
+                title = "Black Lost on Time!"
+            else:
+                title = "White Lost on Time!"
         else:
-            title = "Checkmate: Black Wins!"
+            return
+
 
         font = pg.font.Font(None, 36)
 
@@ -343,7 +354,8 @@ class View():
         w, h = self.play_again_button_size
         return (x >= bx - (w*0.5) and x <= bx + (w*0.5) and y >= by - (h*0.5) and y <= by + (h*0.5))
 
-    def show_scoreboard(self, player, computer):
+    def show_stats(self, player, computer, player_time, computer_time, start, bot_thinking):
+        self.start.surface.fill((0,0,0,0))
         board_edge_x = self.BOARD_LOC[0] + self.BOARD_SIZE
         x, y = board_edge_x * 1.25, self.BOARD_LOC[1]
         font = pg.font.Font(None, int(self.BOARD_SIZE * 0.1))
@@ -351,6 +363,23 @@ class View():
             text = font.render(score, True, BLACK_COLOUR)
             self.window.blit(text, (x, y))
             y += text.get_height()
+
+        y += text.get_height()
+        if bot_thinking:
+            computer_time -= time.time() - start
+        else:
+            player_time -= time.time() - start
+
+        player_seconds, player_minutes = int(player_time % 60), int(player_time // 60)
+        computer_seconds, computer_minutes = int(computer_time % 60), int(computer_time // 60)
+
+
+        for timer in [f"Player Time: {player_minutes}:{player_seconds}", f"Computer Time: {computer_minutes}:{computer_seconds}"]:
+            text = font.render(timer, True, BLACK_COLOUR)
+            self.window.blit(text, (x, y))
+            y += text.get_height()
+
+
         
 
 
