@@ -75,6 +75,8 @@ class Main():
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     quit()
+                elif event.type == pg.VIDEORESIZE:
+                    self.view.resize_board((event.w, event.h))
                 if event.type == pg.MOUSEBUTTONDOWN:
                     colour = self.view.start.get_colour_selection(event.pos)
                     if colour is not None:
@@ -90,13 +92,14 @@ class Main():
                     quit()
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
+                elif event.type == pg.VIDEORESIZE:
+                    self.view.resize_board((event.w, event.h))
                 elif event.type == pg.MOUSEBUTTONUP:
                     self.left_click_up_handler(event)
                 elif event.type == pg.MOUSEMOTION:
                     self.mouse_movement_handler(event)
                 elif event.type == pg.KEYDOWN:
                     self.key_press_handler(event)
-
 
             if self.in_checkmate:
                 quit()
@@ -183,7 +186,6 @@ class Main():
 
     def move_piece(self, target, promotion_piece):
         moveset = (get_real_index(self.piece_selected), get_real_index(target), promotion_piece)
-        print(self.board.is_checking_move(moveset))
         self.board.move_piece(moveset)
         self.piece_selected = None
         self.piece_held = None

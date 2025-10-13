@@ -11,7 +11,7 @@ from util import (BLACK_BISHOP, START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
                   WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, WHITE_KING_START, BLACK_KING_START,
                   make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES, SLIDING_PIECES,
-                    )
+                  WHITE_PIECES, BLACK_PIECES)
 
 type Bitboard = int
 type Ray = list[int]
@@ -88,6 +88,11 @@ class Game():
         self.bishop_rays: list[list[Ray]] = self.get_bishop_rays()
         self.rook_rays: list[list[Ray]] = self.get_rook_rays()
         self.queen_rays: list[list[Ray]] = [self.rook_rays[square] + self.bishop_rays[square] for square in range(64)]
+
+        self.white_captured_list = []
+        self.black_captured_list = []
+
+
 
     def set_bitboards(self):
         self.white_pieces = (self.white_pawns | self.white_bishops
@@ -768,6 +773,16 @@ class Game():
 
         #promotions
         self.set_piece(end, promotion) if promotion else self.set_piece(end, piece)
+
+        if captured_piece is not None and captured_piece != EMPTY:
+            if get_colour(captured_piece) == WHITE:
+                self.white_captured_list.append(captured_piece)
+                self.white_captured_list.sort()
+            else:
+                self.black_captured_list.append(captured_piece)
+                self.black_captured_list.sort()
+
+
         #castles
         if piece_type == KING and (end - start) == 2:
             castle = 'K_CASTLE'
@@ -822,6 +837,12 @@ class Game():
             else:
                 self.remove_piece(BLACK_KING_START - 1)
                 self.set_piece(BLACK_KING_START - 4, ROOK | BLACK)
+
+        if captured_piece in self.white_captured_list:
+            self.white_captured_list.remove(captured_piece)
+        elif captured_piece in self.black_captured_list:
+            self.black_captured_list.remove(captured_piece)
+
 
         # Restore meta state
         self.castling = castling
@@ -1065,7 +1086,6 @@ class Game():
     def make_move_adversary(self):
         legal_moves = self.generate_legal_moves(self.turn)
         move, _ = find_best_move(self, 5)
-        print(move)
         self.move_piece(move)
 
 def alphabeta(board, depth, alpha, beta, maximizing):

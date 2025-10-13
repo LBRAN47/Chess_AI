@@ -106,6 +106,7 @@ MATCH_PIECE = {
     KING : PST_KING_OPENING,
 }
 
+
 def mirror(idx):
     return idx ^ 56
 

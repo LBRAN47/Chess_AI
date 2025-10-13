@@ -2,11 +2,11 @@ import math
 from typing import List, Tuple
 EMPTY = 0
 PAWN = 1
-KING = 2
-QUEEN = 3
-BISHOP = 4
-KNIGHT = 5
-ROOK = 6
+KNIGHT = 2
+BISHOP = 3
+ROOK = 4
+QUEEN = 5
+KING = 6
 BLACK = 0
 WHITE = 8
 
@@ -23,6 +23,15 @@ BLACK_QUEEN = BLACK | QUEEN
 WHITE_KING = WHITE | KING
 BLACK_KING = BLACK | KING
 
+PIECE_REAL_VALS = {
+    PAWN : 1,
+    BISHOP : 3,
+    KNIGHT : 3,
+    ROOK : 5,
+    QUEEN : 9,
+    KING : 0,
+}
+
 PIECES = {"P": WHITE_PAWN, "p" : BLACK_PAWN,
         "B": WHITE_BISHOP, "b" : BLACK_BISHOP,
         "N": WHITE_KNIGHT, "n" : BLACK_KNIGHT,
@@ -37,6 +46,9 @@ START_BOARD = [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, 
               + ([EMPTY] * 8 * 4) \
               + ([WHITE_PAWN] * 8) \
               + [WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_QUEEN, WHITE_KING, WHITE_BISHOP, WHITE_KNIGHT, WHITE_ROOK]
+
+BLACK_PIECES = ([BLACK_PAWN] * 8) + ([BLACK_ROOK] * 2) + ([BLACK_KNIGHT] * 2) + ([BLACK_BISHOP] * 2) + [BLACK_QUEEN, BLACK_KING]
+WHITE_PIECES = ([WHITE_PAWN] * 8) + ([WHITE_ROOK] * 2) + ([WHITE_KNIGHT] * 2) + ([WHITE_BISHOP] * 2) + [WHITE_QUEEN, WHITE_KING]
 
 
 WHITE_K_CASTLE = 8
@@ -66,6 +78,13 @@ PIECE_FILENAMES = {
     WHITE_QUEEN:"wq", BLACK_QUEEN:"bq",
     WHITE_KING:"wk", BLACK_KING:"bk",
 }
+
+def count_value(pieces):
+    val = 0
+    for piece in pieces:
+        piece = strip_piece(piece)
+        val += PIECE_REAL_VALS[piece]
+    return val
 
 def get_real_index(square: tuple[int, int]) -> int:
     return square[1]*8 + square[0]
