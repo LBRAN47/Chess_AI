@@ -170,6 +170,11 @@ class Main():
 
             self.view.show_board(self.board, self.piece_selected, self.piece_held, bot_thinking)
 
+            if not bot_thinking:
+                self.view.show_pieces_captured(self.board.white_captured_list, self.board.black_captured_list)
+            else:
+                self.view.show_pieces_captured(white_pieces, black_pieces)
+
             if self.is_piece_held():
                 self.view.show_held_piece(self.piece_x,
                                           self.piece_y,
@@ -191,6 +196,8 @@ class Main():
                 # players turn is done
                 player_time -= time.time() - start
                 #start computer's turn
+                white_pieces = self.board.white_captured_list.copy()
+                black_pieces = self.board.black_captured_list.copy()
                 start = time.time()
                 bot_thinking = True
                 bot_thread = threading.Thread(target=self.board.make_move_adversary)
@@ -265,7 +272,7 @@ class Main():
         if self.piece_held:
             x, y = event.pos
             target = self.view.get_piece_coords(x,y)
-            if self.piece_selected and self.piece_selected != target and self.board.legal_move(self.piece_held, target):
+            if self.piece_selected and self.piece_selected != target and target is not None and self.board.legal_move(self.piece_held, target):
                 if self.board.is_promotion_move(get_real_index(target), get_real_index(self.piece_selected)):
                     self.promoting = True
                     self.promoting_move = target

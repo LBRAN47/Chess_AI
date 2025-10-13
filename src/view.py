@@ -232,7 +232,6 @@ class View():
             self.board.update_selection(selected, board_obj)
             self.board.make_board(board_obj)
             self.board.show_possible_moves(board_obj)
-            self.show_pieces_captured(board_obj)
         self.window.blit(self.board.surface, self.BOARD_LOC)
 
 
@@ -265,12 +264,10 @@ class View():
         
         return (int(x), int(y))
 
-    def show_pieces_captured(self, board_obj):
+    def show_pieces_captured(self, white_pieces, black_pieces):
         IMG_WIDTH, IMG_HEIGHT = 40, 40
         font = pg.font.Font(None, 36)
-        white_pieces = board_obj.white_captured_list
         white_val = count_value(white_pieces)
-        black_pieces = board_obj.black_captured_list
         black_val = count_value(black_pieces)
         val_diff = abs(white_val - black_val)
 
@@ -374,7 +371,7 @@ class View():
         computer_seconds, computer_minutes = int(computer_time % 60), int(computer_time // 60)
 
 
-        for timer in [f"Player Time: {player_minutes}:{player_seconds}", f"Computer Time: {computer_minutes}:{computer_seconds}"]:
+        for timer in [f"Player Time: {player_minutes}:{player_seconds:02}", f"Computer Time: {computer_minutes}:{computer_seconds:02}"]:
             text = font.render(timer, True, BLACK_COLOUR)
             self.window.blit(text, (x, y))
             y += text.get_height()
