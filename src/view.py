@@ -342,6 +342,15 @@ class View():
         bx, by = self.play_again_button_loc
         w, h = self.play_again_button_size
         return (x >= bx - (w*0.5) and x <= bx + (w*0.5) and y >= by - (h*0.5) and y <= by + (h*0.5))
+
+    def show_scoreboard(self, player, computer):
+        board_edge_x = self.BOARD_LOC[0] + self.BOARD_SIZE
+        x, y = board_edge_x * 1.25, self.BOARD_LOC[1]
+        font = pg.font.Font(None, int(self.BOARD_SIZE * 0.1))
+        for score in [f"Player Wins: {player}", f"Computer Wins: {computer}"]:
+            text = font.render(score, True, BLACK_COLOUR)
+            self.window.blit(text, (x, y))
+            y += text.get_height()
         
 
 

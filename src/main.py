@@ -64,6 +64,8 @@ class Main():
         self.multiplayer = multiplayer
 
         if not multiplayer:
+            self.computer_wins = 0
+            self.player_wins = 0
             self.start_screen()
         self.game_loop()
 
@@ -101,8 +103,12 @@ class Main():
             winner = None
         elif self.board.is_checkmate(player):
             winner = opponent
+            if not self.multiplayer:
+                self.computer_wins += 1
         else:
             winner = player
+            if not self.multiplayer:
+                self.player_wins += 1
 
         while True:
             for event in pg.event.get():
@@ -113,6 +119,8 @@ class Main():
                 elif event.type == pg.MOUSEBUTTONDOWN:
                     if self.view.selected_play_again(event.pos):
                         self.reset_game()
+                        if not self.multiplayer:
+                            self.start_screen()
                         self.game_loop()
                     else:
                         return
@@ -147,6 +155,9 @@ class Main():
                 self.view.show_held_piece(self.piece_x,
                                           self.piece_y,
                                           self.piece_held)
+
+            if not self.multiplayer:
+                self.view.show_scoreboard(self.player_wins, self.computer_wins)
 
 
             self.view.update_screen()

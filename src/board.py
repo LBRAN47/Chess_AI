@@ -1,4 +1,4 @@
-from math import pi, remainder
+from math import e, pi, remainder
 from typing import List, Tuple
 import copy
 import random
@@ -1123,7 +1123,11 @@ def alphabeta(board, depth, alpha, beta, maximizing):
     if depth == 0:
         return evaluate_board(board), None
     if board.is_checkmate(board.turn):
-        return -100000 + depth, None
+        print("CHECKMATE FOUND")
+        if maximizing:
+            return -100000 - depth, None
+        else:
+            return 100000 + depth, None
     if board.is_stalemate(board.turn):
         return 0, None
 
