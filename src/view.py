@@ -192,6 +192,13 @@ class View():
         self.start = StartScreen(self.SCREEN_SIZE)
         self.board = BoardView((self.BOARD_SIZE, self.BOARD_SIZE), imgs=self.img_cache) #board is half the size of screen
 
+        self.play_again_button_loc = None
+        self.play_again_button_size = None
+
+    def reset(self):
+        self.play_again_button_loc = None
+        self.play_again_button_size = None
+
     def resize_board(self, screen_size):
         self.SCREEN_SIZE = screen_size
         self.BOARD_SIZE = min(screen_size) * 0.75
@@ -291,6 +298,58 @@ class View():
                 text = font.render(f"+{val_diff}", True, WHITE_COLOUR)
                 text_rect = text.get_rect(center=(x + IMG_WIDTH // 2 + IMG_WIDTH, y + IMG_HEIGHT // 2))
                 self.window.blit(text, text_rect)
+
+    def show_end_screen(self, winner):
+        if winner is None:
+            title = "Stalemate: It's a Draw!"
+        elif winner == WHITE:
+            title = "Checkmate: White Wins!"
+        else:
+            title = "Checkmate: Black Wins!"
+
+        font = pg.font.Font(None, 36)
+
+        pop_up_size = (self.BOARD_SIZE * 0.5, self.BOARD_SIZE * 0.5)
+        pop_up_loc = (self.BOARD_LOC[0] + self.BOARD_SIZE * 0.5, self.BOARD_LOC[1] + self.BOARD_SIZE * 0.5)
+        rect_surf = pg.Surface(pop_up_size)
+        rect = rect_surf.get_rect(center=pop_up_loc)
+        pg.draw.rect(self.window, BROWN, rect)
+
+        border = pg.Surface((pop_up_size[0] * 1.05, pop_up_size[1] * 1.05))
+        rect = border.get_rect(center=pop_up_loc)
+        pg.draw.rect(self.window, WHITE_COLOUR, rect, 10)
+
+        text = font.render(title, True, BLACK_COLOUR)
+        text_rect = text.get_rect(center=(pop_up_loc[0], pop_up_loc[1]))
+        self.window.blit(text, text_rect)
+
+        d = 25
+        title_font = pg.font.Font(None, 72)
+        self.play_again_button_size = (pop_up_size[0] // 2, pop_up_size[1] // 12)
+
+        button_surf = pg.Surface(self.play_again_button_size)
+        self.play_again_button_loc = (pop_up_loc[0], pop_up_loc[1] + pop_up_size[1] * 0.2)
+        button = button_surf.get_rect(center=self.play_again_button_loc)
+        pg.draw.rect(self.window, WHITE_COLOUR, button, border_radius=10)
+        text = font.render("PLAY AGAIN", True, BLACK_COLOUR)
+        text_rect = text.get_rect(center=self.play_again_button_loc)
+        self.window.blit(text, text_rect)
+
+    def selected_play_again(self, pos):
+        if self.play_again_button_loc is None or self.play_again_button_size is None:
+            return False
+        x, y = pos
+        bx, by = self.play_again_button_loc
+        w, h = self.play_again_button_size
+        return (x >= bx - (w*0.5) and x <= bx + (w*0.5) and y >= by - (h*0.5) and y <= by + (h*0.5))
+        
+
+
+
+
+
+
+
 
 
 

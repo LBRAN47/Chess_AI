@@ -11,7 +11,7 @@ from util import (BLACK_BISHOP, START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
                   WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, WHITE_KING_START, BLACK_KING_START,
                   make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES, SLIDING_PIECES,
-                  WHITE_PIECES, BLACK_PIECES)
+                  WHITE_PIECES, BLACK_PIECES, ALL, assemble_start_board)
 
 type Bitboard = int
 type Ray = list[int]
@@ -53,7 +53,7 @@ class Game():
         #4th bit: set if black can Queenside castle
         self.castling: int = castling
 
-        self.ep_target: int = None if ep_target is None else ep_target[1]*8 + ep_target[0]
+        self.ep_target = None if ep_target is None else ep_target[1]*8 + ep_target[0]
         self.halfs: int= halfs #number of half moves (for 50 move rule)
         self.fulls: int = fulls#number of full moves (increments after black moves)
 
@@ -91,6 +91,35 @@ class Game():
 
         self.white_captured_list = []
         self.black_captured_list = []
+
+    def reset_board(self):
+        self.board = assemble_start_board()
+
+        self.white_pieces: Bitboard = EMPTY_BITBOARD
+        self.black_pieces: Bitboard = EMPTY_BITBOARD
+        self.white_pawns: Bitboard = EMPTY_BITBOARD
+        self.white_knights: Bitboard = EMPTY_BITBOARD
+        self.white_bishops: Bitboard = EMPTY_BITBOARD
+        self.white_rooks: Bitboard = EMPTY_BITBOARD
+        self.white_queens: Bitboard = EMPTY_BITBOARD
+        self.white_king: int = -1
+        self.black_pawns: Bitboard = EMPTY_BITBOARD
+        self.black_knights: Bitboard = EMPTY_BITBOARD
+        self.black_bishops: Bitboard = EMPTY_BITBOARD
+        self.black_rooks: Bitboard = EMPTY_BITBOARD
+        self.black_queens: Bitboard = EMPTY_BITBOARD
+        self.black_king: int = -1
+
+        for square in range(64):
+                piece = self.board[square]
+                if piece != EMPTY:
+                    self.set_piece(square, piece)
+
+        self.white_captured_list = []
+        self.black_captured_list = []
+        self.ep_target = None
+        self.turn = WHITE
+        self.castling = ALL
 
 
 
@@ -1041,6 +1070,7 @@ class Game():
     def is_capture(self, move):
         start, end, _ = move
         return self.board[end] != EMPTY
+
     def op_turn(self):
         return WHITE if self.turn == BLACK else BLACK
 

@@ -1,7 +1,7 @@
 from pygame.event import get
 from board import Game, perft, show_split_perft
 from parser import (parse_PGN, parse_move, parse_FEN)
-from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK, get_real_index
+from util import WHITE, BISHOP, KNIGHT, QUEEN, ROOK, get_real_index, BLACK
 import pygame as pg
 from view import View
 import argparse
@@ -59,13 +59,26 @@ class Main():
         self.piece_y = 0
         self.promoting = False
         self.promoting_move = None
-        self.in_checkmate = False
+        self.game_over = False
         self.player_colour = None
         self.multiplayer = multiplayer
 
         if not multiplayer:
             self.start_screen()
         self.game_loop()
+
+    def reset_game(self):
+        self.board.reset_board()
+        print(self.board)
+        self.view.reset()
+        self.piece_held = None
+        self.piece_selected = None
+        self.piece_x = 0
+        self.piece_y = 0
+        self.promoting = False
+        self.promoting_move = None
+        self.game_over = False
+
 
     def start_screen(self):
         choice = None
@@ -82,6 +95,34 @@ class Main():
                     if colour is not None:
                         self.player_colour = colour
                         return
+
+    def game_over_screen(self, player=WHITE):
+        opponent = WHITE if player == BLACK else BLACK
+        if self.board.is_stalemate(self.board.turn):
+            winner = None
+        elif self.board.is_checkmate(player):
+            winner = opponent
+        else:
+            winner = player
+
+        while True:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    quit()
+                elif event.type == pg.VIDEORESIZE:
+                    self.view.resize_board((event.w, event.h))
+                elif event.type == pg.MOUSEBUTTONDOWN:
+                    if self.view.selected_play_again(event.pos):
+                        print("HEEERERER")
+                        self.reset_game()
+                        self.game_loop()
+                    else:
+                        return
+            self.view.show_end_screen(winner)
+            self.view.update_screen()
+
+
+
 
     def game_loop(self):
         while True:
@@ -101,8 +142,6 @@ class Main():
                 elif event.type == pg.KEYDOWN:
                     self.key_press_handler(event)
 
-            if self.in_checkmate:
-                quit()
 
             self.view.show_board(self.board, self.piece_selected, self.piece_held)
 
@@ -113,6 +152,12 @@ class Main():
 
 
             self.view.update_screen()
+
+            if self.game_over:
+                if self.player_colour is not None:
+                    self.game_over_screen(self.player_colour)
+                else:
+                    self.game_over_screen()
 
             if not self.multiplayer and self.board.turn != self.player_colour:
                 self.board.make_move_adversary()
@@ -189,8 +234,8 @@ class Main():
         self.board.move_piece(moveset)
         self.piece_selected = None
         self.piece_held = None
-        if self.board.is_checkmate(self.board.turn):
-            self.in_checkmate = True
+        if self.board.is_checkmate(self.board.turn) or self.board.is_stalemate(self.board.turn):
+            self.game_over = True
 
 
 #prepare subprocess for stockfish comparision

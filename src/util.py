@@ -41,6 +41,7 @@ PIECES = {"P": WHITE_PAWN, "p" : BLACK_PAWN,
 INV_PIECES = {value: key for key, value in PIECES.items()}
 SLIDING_PIECES = [ROOK, BISHOP, QUEEN]
 
+
 START_BOARD = [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK] \
               + ([BLACK_PAWN] * 8) \
               + ([EMPTY] * 8 * 4) \
@@ -78,6 +79,13 @@ PIECE_FILENAMES = {
     WHITE_QUEEN:"wq", BLACK_QUEEN:"bq",
     WHITE_KING:"wk", BLACK_KING:"bk",
 }
+
+def assemble_start_board():
+    return [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK] \
+              + ([BLACK_PAWN] * 8) \
+              + ([EMPTY] * 8 * 4) \
+              + ([WHITE_PAWN] * 8) \
+              + [WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_QUEEN, WHITE_KING, WHITE_BISHOP, WHITE_KNIGHT, WHITE_ROOK]
 
 def count_value(pieces):
     val = 0

@@ -126,6 +126,16 @@ class CheckTest(unittest.TestCase):
         # Queen e3
         self.assertTrue(self.game.is_checking_move((51, 44, None)))
 
+class StalemateTest(unittest.TestCase):
+
+    def setUp(self):
+        self.start_fen = "7k/8/8/6Q1/8/8/8/4K3 w - - 0 1"
+        self.game = parse_FEN(self.start_fen)
+
+    def test_stale(self):
+        self.game.move_piece((30, 22, None))
+        self.assertTrue(self.game.is_stalemate(self.game.turn))
+
 def make_bb(*nums):
     bb = 0
     for num in nums:
