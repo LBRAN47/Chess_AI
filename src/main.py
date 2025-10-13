@@ -69,7 +69,6 @@ class Main():
 
     def reset_game(self):
         self.board.reset_board()
-        print(self.board)
         self.view.reset()
         self.piece_held = None
         self.piece_selected = None
@@ -113,7 +112,6 @@ class Main():
                     self.view.resize_board((event.w, event.h))
                 elif event.type == pg.MOUSEBUTTONDOWN:
                     if self.view.selected_play_again(event.pos):
-                        print("HEEERERER")
                         self.reset_game()
                         self.game_loop()
                     else:
@@ -161,10 +159,8 @@ class Main():
 
             if not self.multiplayer and self.board.turn != self.player_colour:
                 self.board.make_move_adversary()
-                if self.board.is_checkmate(self.board.turn):
-                    quit()
-                if self.board.is_stalemate(self.board.turn):
-                    quit()
+                if self.board.is_checkmate(self.board.turn) or self.board.is_stalemate(self.board.turn):
+                    self.game_over = True
             
 
 
