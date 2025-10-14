@@ -155,6 +155,8 @@ class Main():
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     quit()
+                if bot_thinking:
+                    continue
                 if event.type == pg.MOUSEBUTTONDOWN:
                     self.left_click_handler(event)
                 elif event.type == pg.VIDEORESIZE:

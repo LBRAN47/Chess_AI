@@ -65,7 +65,7 @@ class BaseTest(unittest.TestCase):
         # Knight b1 to c3
         self.assertTrue(self.game.legal_move((1,7),(2,5)))
 
-    def perft(self):
+    def test_perft(self):
         for i, count in enumerate([1, 20, 400, 8902, 197281, 4865609]):
             self.assertEqual(perft(self.game, i), count)
 
@@ -111,10 +111,7 @@ class KiwiPeteTest(unittest.TestCase):
         self.game.unmake_move(move, stuff)
         self.assertTrue(old == self.game.zobrist)
 
-
-
-
-    def perft(self):
+    def test_perft(self):
         for i, count in enumerate([1, 48, 2039, 97862, 4085603]):
             self.assertEqual(perft(self.game, i), count)
 

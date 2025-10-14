@@ -34,6 +34,29 @@ TURN = 9
 PROMOTION = 10
 CASTLE = 11
 
+DEPTH = 0
+SCORE = 1
+FLAG = 2
+MOVE = 3
+
+EXACT = 0
+UPPERBOUND = 1 
+LOWERBOUND = 2
+
+class TranspositionTable():
+    def __init__(self):
+        self.table = {}
+
+    def lookup(self, key, depth):
+        entry = self.table.get(key)
+        if entry and entry[0] >= depth:
+            return entry
+        return
+
+    def store(self, key, depth, score, flag, move):
+        entry = self.table.get(key)
+        if entry is None or depth >= entry[0]:
+            self.table[key] = (depth, score, flag, move)
 
 
 class Game():
@@ -1172,12 +1195,23 @@ class Game():
         move, _ = find_best_move(self, 5)
         self.move_piece(move)
 
-def alphabeta(board, depth, alpha, beta, maximizing):
+def alphabeta(board, depth, alpha, beta, maximizing, tt):
+
+    key = board.zobrist
+    entry = tt.lookup(key, depth)
+    if entry:
+        if entry[FLAG] == EXACT:
+            return entry[SCORE], entry[MOVE]
+        elif entry[FLAG] == LOWERBOUND:
+            alpha = max(alpha, entry[SCORE])
+        elif entry[FLAG] == UPPERBOUND:
+            beta = min(beta, entry[SCORE])
+        if alpha >= beta:
+            return entry[SCORE], entry[MOVE]
     # Base case
     if depth == 0:
         return evaluate_board(board), None
     if board.is_checkmate(board.turn):
-        print("CHECKMATE FOUND")
         if maximizing:
             return -100000 - depth, None
         else:
@@ -1194,7 +1228,7 @@ def alphabeta(board, depth, alpha, beta, maximizing):
         value = -float('inf')
         for move in legal_moves:
             old_state = board.move_piece(move)
-            score, _ = alphabeta(board, depth - 1, alpha, beta, False)
+            score, _ = alphabeta(board, depth - 1, alpha, beta, False, tt)
             board.unmake_move(move, old_state)
 
             if score > value:
@@ -1204,13 +1238,21 @@ def alphabeta(board, depth, alpha, beta, maximizing):
             alpha = max(alpha, value)
             if beta <= alpha:
                 break  # Beta cutoff
+        if value <= alpha:
+            flag = UPPERBOUND
+        elif value >= beta:
+            flag = LOWERBOUND
+        else:
+            flag = EXACT
+        tt.store(key, depth, value, flag, best_move)
+
         return value, best_move
 
     else:
         value = float('inf')
         for move in legal_moves:
             old_state = board.move_piece(move)
-            score, _ = alphabeta(board, depth - 1, alpha, beta, True)
+            score, _ = alphabeta(board, depth - 1, alpha, beta, True, tt)
             board.unmake_move(move, old_state)
 
             if score < value:
@@ -1220,24 +1262,40 @@ def alphabeta(board, depth, alpha, beta, maximizing):
             beta = min(beta, value)
             if beta <= alpha:
                 break  # Alpha cutoff
+
+        if value <= alpha:
+            flag = UPPERBOUND
+        elif value >= beta:
+            flag = LOWERBOUND
+        else:
+            flag = EXACT
+        tt.store(key, depth, value, flag, best_move)
+
         return value, best_move
 
 def find_best_move(board, depth):
     maximizing = (board.turn == WHITE)
-    score, best_move = alphabeta(board, depth, -float('inf'), float('inf'), maximizing)
+    tt = TranspositionTable()
+    score, best_move = alphabeta(board, depth, -float('inf'), float('inf'), maximizing, tt)
     return best_move, score
 
-def perft(board, depth):
+def perft(board, depth, tt=None):
     """Count leaf nodes at a given depth using make/unmake moves."""
     if depth == 0:
         return 1
-
+    key = board.zobrist
+    if tt:
+        cached = tt.lookup(key, depth)
+        if cached is not None:
+            return cached
     total = 0
     moves = board.generate_legal_moves(board.turn)
     for move in moves:
         old_state = board.move_piece(move)
-        total += perft(board, depth-1)
+        total += perft(board, depth-1, tt)
         board.unmake_move(move, old_state)
+    if tt:
+        tt.store(key, depth, total)
 
 
     return total
