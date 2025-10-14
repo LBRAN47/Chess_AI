@@ -376,6 +376,27 @@ class View():
             self.window.blit(text, (x, y))
             y += text.get_height()
 
+        y += text.get_height() * 1.2
+
+        self.start_again_button_size = (300, 100)
+        self.start_again_button_loc = (x + (self.start_again_button_size[0] / 2), y)
+        button_surf = pg.Surface(self.start_again_button_size)
+        button = button_surf.get_rect(center=self.start_again_button_loc)
+        pg.draw.rect(self.window, WHITE_COLOUR, button, border_radius=10)
+        text = font.render("RESART", True, BLACK_COLOUR)
+        text_rect = text.get_rect(center=self.start_again_button_loc)
+        self.window.blit(text, text_rect)
+
+    def selected_start_again(self, pos):
+        if self.start_again_button_loc is None or self.start_again_button_size is None:
+            return False
+        x, y = pos
+        bx, by = self.start_again_button_loc
+        w, h = self.start_again_button_size
+        return (x >= bx - (w*0.5) and x <= bx + (w*0.5) and y >= by - (h*0.5) and y <= by + (h*0.5))
+
+
+
 
         
 

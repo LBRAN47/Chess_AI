@@ -135,8 +135,6 @@ class Main():
                         if not self.multiplayer:
                             self.start_screen()
                         self.game_loop()
-                    else:
-                        return
             self.view.show_end_screen(winner, mode)
             self.view.update_screen()
 
@@ -144,7 +142,7 @@ class Main():
 
 
     def game_loop(self):
-        total_time = 180.0
+        total_time = 300.0
         computer_time = total_time
         player_time = total_time
         start = time.time()
@@ -158,6 +156,12 @@ class Main():
                 if bot_thinking:
                     continue
                 if event.type == pg.MOUSEBUTTONDOWN:
+                    if self.view.selected_start_again(event.pos):
+                        self.reset_game()
+                        if not self.multiplayer:
+                            self.start_screen()
+                        self.game_loop()
+
                     self.left_click_handler(event)
                 elif event.type == pg.VIDEORESIZE:
                     self.view.resize_board((event.w, event.h))
@@ -243,10 +247,12 @@ class Main():
     def left_click_handler(self, event):
         if self.promoting:
             return 
+
         x, y = event.pos
         target = self.view.get_piece_coords(x,y)
         if target is None:
             return
+
         if self.piece_selected and target != self.piece_selected:
             if self.board.legal_move(self.piece_selected, target):
                 if self.board.is_promotion_move(get_real_index(target), self.board.get_square(get_real_index(self.piece_selected))):
