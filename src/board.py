@@ -1192,7 +1192,7 @@ class Game():
         return False
 
     def make_move_adversary(self):
-        move, _ = find_best_move(self, 5)
+        move, _ = find_best_move(self, 4)
         self.move_piece(move)
 
 def alphabeta(board, depth, alpha, beta, maximizing, tt):
