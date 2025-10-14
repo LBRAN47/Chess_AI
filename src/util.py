@@ -1,5 +1,6 @@
 import math
 from typing import List, Tuple
+import random
 EMPTY = 0
 PAWN = 1
 KNIGHT = 2
@@ -50,6 +51,28 @@ START_BOARD = [BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, 
 
 BLACK_PIECES = ([BLACK_PAWN] * 8) + ([BLACK_ROOK] * 2) + ([BLACK_KNIGHT] * 2) + ([BLACK_BISHOP] * 2) + [BLACK_QUEEN, BLACK_KING]
 WHITE_PIECES = ([WHITE_PAWN] * 8) + ([WHITE_ROOK] * 2) + ([WHITE_KNIGHT] * 2) + ([WHITE_BISHOP] * 2) + [WHITE_QUEEN, WHITE_KING]
+
+PIECE_INDEX = {
+    WHITE_PAWN : 0,
+    BLACK_PAWN : 1,
+    WHITE_BISHOP : 2,
+    BLACK_BISHOP : 3,
+    WHITE_KNIGHT : 4,
+    BLACK_KNIGHT : 5,
+    WHITE_ROOK : 6,
+    BLACK_ROOK : 7,
+    WHITE_QUEEN : 8,
+    BLACK_QUEEN : 9,
+    WHITE_KING : 10,
+    BLACK_KING : 11,
+}
+
+random.seed(2025)
+
+ZOBRIST_PIECE = [[random.getrandbits(64) for _ in range(64)] for _ in range(12)]
+ZOBRIST_SIDE = random.getrandbits(64)
+ZOBRIST_CASTLE = [random.getrandbits(64) for _ in range(16)]
+ZOBRIST_EP = [random.getrandbits(64) for _ in range(8)]
 
 
 WHITE_K_CASTLE = 8

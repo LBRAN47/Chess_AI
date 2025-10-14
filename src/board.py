@@ -12,7 +12,7 @@ from util import (BLACK_BISHOP, START_BOARD, WHITE, BLACK, PAWN, BISHOP, KNIGHT,
                   EMPTY, get_colour, get_piece_name, strip_piece, tuple_add, tuple_diff, out_of_bounds,
                   WHITE_PAWN, BLACK_PAWN, WHITE_KING, BLACK_KING, WHITE_KING_START, BLACK_KING_START,
                   make_bit_board, print_bit_board,  check_bit_board, set_bit_board, PIECES, SLIDING_PIECES,
-                  WHITE_PIECES, BLACK_PIECES, ALL, assemble_start_board)
+                  WHITE_PIECES, BLACK_PIECES, ALL, assemble_start_board, ZOBRIST_CASTLE, ZOBRIST_EP, ZOBRIST_PIECE, ZOBRIST_SIDE, PIECE_INDEX)
 
 type Bitboard = int
 type Ray = list[int]
@@ -33,6 +33,8 @@ FULLS = 8
 TURN = 9
 PROMOTION = 10
 CASTLE = 11
+
+
 
 class Game():
     """Simulates a chess game. Keeps track of the game state and calculates
@@ -93,6 +95,8 @@ class Game():
         self.white_captured_list = []
         self.black_captured_list = []
 
+        self.zobrist = self.compute_hash()
+
     def reset_board(self):
         self.board = assemble_start_board()
 
@@ -121,6 +125,26 @@ class Game():
         self.ep_target = None
         self.turn = WHITE
         self.castling = ALL
+
+
+
+
+    def compute_hash(self):
+        h = 0
+        for square in range(64):
+            real_piece = self.board[square]
+            if real_piece == EMPTY:
+                continue
+            piece = PIECE_INDEX[real_piece]
+            h ^= ZOBRIST_PIECE[piece][square]
+        if self.turn == WHITE:
+            h ^= ZOBRIST_SIDE
+        h ^= ZOBRIST_CASTLE[self.castling]
+        if self.ep_target is not None:
+            h ^= ZOBRIST_EP[self.ep_target % 8]
+        return h
+
+
 
 
 
@@ -490,6 +514,7 @@ class Game():
 
     def update_castle_rights(self, pos):
         """Based on the move update the castling rights"""
+        old_castling = self.castling
         colour = self.get_colour(pos)
         piece = self.board[pos]
         if piece == colour | ROOK:
@@ -514,6 +539,10 @@ class Game():
             self.castling &= ~(WHITE_K_CASTLE | WHITE_Q_CASTLE)
         elif pos == self.black_king:
                 self.castling &= ~(BLACK_K_CASTLE | BLACK_Q_CASTLE)
+
+        if old_castling != self.castling:
+            self.zobrist ^= ZOBRIST_CASTLE[old_castling]
+            self.zobrist ^= ZOBRIST_CASTLE[self.castling]
 
 
 #PSEUDO LEGAL MOVE GENERATION ################################################
@@ -787,6 +816,7 @@ class Game():
             captured_square = end if captured_piece != EMPTY else None
 
 
+        zobrist = self.zobrist
         castling = self.castling
         ep_target = self.ep_target
         halfs = self.halfs
@@ -819,32 +849,56 @@ class Game():
             if self.turn == WHITE:
                 self.set_piece(WHITE_KING_START + 1, ROOK | WHITE)
                 self.remove_piece(WHITE_KING_START + 3)
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | WHITE]][WHITE_KING_START + 3]
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | WHITE]][WHITE_KING_START + 1]
             else:
                 self.set_piece(BLACK_KING_START + 1, ROOK | BLACK)
                 self.remove_piece(BLACK_KING_START + 3)
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | BLACK]][BLACK_KING_START + 3]
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | BLACK]][BLACK_KING_START + 1]
         elif piece_type == KING and (end - start) == -2:
             castle = 'Q_CASTLE'
             if self.turn == WHITE:
                 self.set_piece(WHITE_KING_START - 1, ROOK | WHITE)
                 self.remove_piece(WHITE_KING_START - 4)
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | WHITE]][WHITE_KING_START - 4]
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | WHITE]][WHITE_KING_START - 1]
             else:
                 self.set_piece(BLACK_KING_START - 1, ROOK | BLACK)
                 self.remove_piece(BLACK_KING_START - 4)
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | BLACK]][BLACK_KING_START - 4]
+                self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[ROOK | BLACK]][BLACK_KING_START - 1]
 
-        self.ep_target = None
         if piece_type == PAWN and abs(end - start) == 16:
+            if self.ep_target is not None:
+                self.zobrist ^= ZOBRIST_EP[self.ep_target % 8]
             self.ep_target = (start + end) // 2
+            self.zobrist ^= ZOBRIST_EP[self.ep_target % 8]
+        else:
+            self.ep_target = None
+
+        self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[piece]][start]
+        self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[piece]][end]
+
+        if captured_piece is not None and captured_piece != EMPTY:
+            self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[captured_piece]][end]
+
+        if promotion:
+            self.zobrist ^= ZOBRIST_PIECE[PIECE_INDEX[promotion]][end]
+
 
         self.change_turn()
+        self.zobrist ^= ZOBRIST_SIDE
 
-        return (start, end, piece, captured_piece, captured_square, castling, ep_target, halfs, fulls, turn, promotion, castle)
+
+        return (start, end, piece, captured_piece, captured_square, castling, ep_target, halfs, fulls, turn, promotion, castle, zobrist)
 
 
     def unmake_move(self, move, old_state):
         """
         Restore board to previous state using the dictionary returned by move_piece.
         """
-        start, end, piece, captured_piece, captured_square, castling, ep_target, halfs, fulls, old_turn, promotion, castle = old_state
+        start, end, piece, captured_piece, captured_square, castling, ep_target, halfs, fulls, old_turn, promotion, castle, zobrist = old_state
 
         self.remove_piece(end)
         self.set_piece(start, piece)
@@ -880,6 +934,7 @@ class Game():
         self.halfs = halfs
         self.fulls = fulls
         self.turn = old_turn
+        self.zobrist = zobrist
 
     def check_legality(self, move, king_threats, attacks, pins, opp_colour):
         """
@@ -1113,7 +1168,6 @@ class Game():
 
         return False
 
-    
     def make_move_adversary(self):
         move, _ = find_best_move(self, 5)
         self.move_piece(move)

@@ -151,7 +151,6 @@ class Main():
         bot_thinking = False
         bot_thread = None
         while True:
-            print(player_time, computer_time)
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:

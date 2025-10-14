@@ -104,6 +104,14 @@ class KiwiPeteTest(unittest.TestCase):
         #count moves 
         self.assertEqual(len(self.game.generate_legal_moves(self.game.turn)), 48)
 
+    def test_zobrist(self):
+        old = self.game.zobrist
+        move = (54, 38, None)
+        stuff = self.game.move_piece(move)
+        self.game.unmake_move(move, stuff)
+        self.assertTrue(old == self.game.zobrist)
+
+
 
 
     def perft(self):
