@@ -1,3 +1,10 @@
-Our Python Project For the Rite Journey Program!
+A Complete Chess Engine with move generation and board evaluation written in python!
 
-Watch this space
+# Features
+- pygame GUI for human vs computer
+- CLI for move generation
+
+# Dependencies
+- Use python version 3.13
+- Create a virtual environment and install dependenices
+```bash pip install -r requirements.txt ```
