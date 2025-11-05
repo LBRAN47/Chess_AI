@@ -8,4 +8,4 @@ A Complete Chess Engine with move generation and board evaluation written in pyt
 ## Python version
 Use python version 3.13
 ## Create a virtual environment and install dependenices
-<pre lang="md"> ```bash pip install -r requirements.txt ``` </pre>
+```bash pip install -r requirements.txt ```
