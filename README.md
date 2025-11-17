@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="screenshots/title.png" alt="Title Screen" width="500"/>
-  <img src="screenshots/board.png" alt="Chess Board" width="500"/>
+  <img src="screenshots/title.png" alt="Title Screen" width="300"/>
+  <img src="screenshots/board.png" alt="Chess Board" width="300"/>
 </p>
 
 # Chess AI (Python + Pygame)
