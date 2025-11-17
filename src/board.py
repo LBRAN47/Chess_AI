@@ -1221,6 +1221,7 @@ def alphabeta(board, depth, alpha, beta, maximizing, tt):
 
     best_move = None
     legal_moves = board.generate_legal_moves(board.turn)
+
     #do the captures first
     legal_moves.sort(key=lambda m : board.is_capture(m) or board.is_checking_move(m), reverse=True)
 
