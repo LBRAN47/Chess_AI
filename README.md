@@ -1,7 +1,8 @@
 <p align="center">
-  <img src="screenshots/title.png" alt="Title Screen" width="300"/>
-  <img src="screenshots/board.png" alt="Chess Board" width="300"/>
+  <img src="screenshots/title.png" alt="Title Screen" width="500"/>
+  <img src="screenshots/board.png" alt="Chess Board" width="500"/>
 </p>
+
 # Chess AI (Python + Pygame)
 
 This is a small chess engine I built in Python. It includes full move generation, a minimax opponent with alpha-beta pruning, and a simple Pygame interface to play against it. The goal of the project was to learn more about search algorithms, game trees, and how to structure a larger Python program.
